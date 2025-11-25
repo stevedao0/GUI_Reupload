@@ -124,7 +124,7 @@ def analyze_videos():
         logger.info(f"GPU enabled: {gpu_enabled}")
         logger.info("="*80)
 
-        current_config = config.copy()
+        current_config = config.all.copy()
         current_config['thresholds']['audio_similarity'] = audio_threshold
         current_config['thresholds']['video_similarity'] = video_threshold
         current_config['thresholds']['combined_similarity'] = combined_threshold
