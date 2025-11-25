@@ -242,8 +242,8 @@ def cancel_processing():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/api/status', methods=['GET'])
-def get_status():
+@app.route('/api/job/status', methods=['GET'])
+def get_job_status():
     global current_job
 
     if current_job:
@@ -390,7 +390,7 @@ def cancel_job(job_id):
 
 
 @app.route('/api/status', methods=['GET'])
-def get_status():
+def get_server_status():
     return jsonify({
         'status': 'ready',
         'version': '1.3.0',
