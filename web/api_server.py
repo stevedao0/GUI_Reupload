@@ -12,6 +12,7 @@ import tempfile
 import pandas as pd
 from datetime import datetime
 import json
+import threading
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -26,6 +27,8 @@ CORS(app)
 config = get_config('../config.yaml')
 pipeline = None
 current_results = None
+current_job = None
+cancellation_flag = threading.Event()
 
 
 def get_pipeline():
@@ -48,7 +51,9 @@ def serve_static(path):
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_videos():
-    global current_results
+    global current_results, current_job, cancellation_flag
+
+    cancellation_flag.clear()
 
     try:
         if 'file' not in request.files:
@@ -133,19 +138,32 @@ def analyze_videos():
         pipeline_instance = ProcessingPipeline(current_config)
 
         def progress_callback(current, total, status):
+            if cancellation_flag.is_set():
+                raise Exception("Processing cancelled by user")
             print(f"[{current}/{total}] {status}")
             logger.info(f"Progress: {current}/{total} - {status}")
 
         def log_callback(message):
+            if cancellation_flag.is_set():
+                raise Exception("Processing cancelled by user")
             print(f"  → {message}")
             logger.info(message)
+
+        def is_cancelled():
+            return cancellation_flag.is_set()
+
+        job_id = 'job_' + datetime.now().strftime('%Y%m%d_%H%M%S')
+        current_job = {'id': job_id, 'status': 'running', 'progress': 0}
 
         results = pipeline_instance.process(
             urls=urls,
             metadata=metadata,
             progress_callback=progress_callback,
-            log_callback=log_callback
+            log_callback=log_callback,
+            is_cancelled=is_cancelled
         )
+
+        current_job = None
 
         current_results = results
 
@@ -153,7 +171,7 @@ def analyze_videos():
 
         response = {
             'success': True,
-            'job_id': 'job_' + datetime.now().strftime('%Y%m%d_%H%M%S'),
+            'job_id': job_id,
             'results': {
                 'total_videos': statistics['total_videos'],
                 'reupload_count': statistics['total_reuploads'],
@@ -192,7 +210,52 @@ def analyze_videos():
         logger.error(f"ERROR: {e}")
         logger.error("="*80)
         logger.error(f"Processing error: {e}", exc_info=True)
+        current_job = None
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/cancel', methods=['POST'])
+def cancel_processing():
+    global cancellation_flag, current_job
+
+    try:
+        cancellation_flag.set()
+
+        print("\n" + "="*80)
+        print("CANCELLATION REQUESTED")
+        print("="*80 + "\n")
+
+        logger.info("="*80)
+        logger.info("CANCELLATION REQUESTED - Stopping all processing")
+        logger.info("="*80)
+
+        if current_job:
+            current_job['status'] = 'cancelled'
+
+        return jsonify({
+            'success': True,
+            'message': 'Processing cancellation requested'
+        })
+
+    except Exception as e:
+        logger.error(f"Error during cancellation: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    global current_job
+
+    if current_job:
+        return jsonify({
+            'success': True,
+            'job': current_job
+        })
+    else:
+        return jsonify({
+            'success': True,
+            'job': None
+        })
 
 
 @app.route('/api/process', methods=['POST'])

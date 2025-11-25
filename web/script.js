@@ -238,21 +238,73 @@ class YouTubeContentDetector {
     }
 
     async cancelAnalysis() {
-        this.isProcessing = false;
-        clearInterval(this.timerInterval);
-
-        if (this.jobId) {
-            try {
-                await fetch(`/api/cancel/${this.jobId}`, { method: 'POST' });
-            } catch (error) {
-                console.error('Error canceling job:', error);
-            }
+        if (!confirm('Bạn có chắc muốn hủy phân tích? Tất cả tiến trình sẽ bị mất.')) {
+            return;
         }
 
-        this.switchTab('upload');
-        this.progressBar.style.width = '0%';
-        this.currentStep.textContent = '0';
-        this.elapsedTime.textContent = '0s';
+        console.log('Cancelling analysis...');
+        this.progressText.textContent = 'Đang hủy...';
+        this.cancelBtn.disabled = true;
+        this.cancelBtn.textContent = 'Đang hủy...';
+
+        try {
+            const response = await fetch('/api/cancel', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log('Cancellation successful');
+                this.showNotification('Đã hủy phân tích', 'warning');
+            } else {
+                console.error('Cancellation failed:', result.error);
+                this.showNotification('Lỗi khi hủy: ' + result.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error canceling:', error);
+            this.showNotification('Không thể hủy: ' + error.message, 'error');
+        } finally {
+            this.isProcessing = false;
+            clearInterval(this.timerInterval);
+            this.jobId = null;
+
+            this.switchTab('upload');
+            this.progressBar.style.width = '0%';
+            this.currentStep.textContent = '0';
+            this.elapsedTime.textContent = '0s';
+            this.cancelBtn.disabled = false;
+            this.cancelBtn.textContent = 'Hủy';
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: ${type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
 
     async exportResults() {
