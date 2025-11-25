@@ -1,0 +1,81 @@
+# YouTube Reupload Detector Configuration
+
+# Download Settings
+download:
+  video_quality: "480p"  # Options: 360p, 480p, 720p
+  audio_quality: "128"   # kbps
+  max_parallel: 8        # Number of parallel downloads (increased from 6)
+  concurrent_fragments: 8  # Number of concurrent fragments per download
+  retries: 10           # Number of retries for failed downloads (yt-dlp level)
+  fragment_retries: 10  # Number of retries for failed fragments (yt-dlp level)
+  max_retry_attempts: 3  # Number of wrapper-level retries for network errors (with exponential backoff)
+  retry_delay_base: 2    # Base delay in seconds for exponential backoff (2s, 4s, 8s, ...)
+  temp_dir: "temp_downloads"
+  keep_files: true       # Keep downloaded files after processing (for testing/debugging)
+
+# GPU Settings
+gpu:
+  enabled: true
+  device: "cuda"  # cuda for NVIDIA, mps for Apple Silicon, cpu for CPU only
+  fp16: true      # Use FP16 for faster inference (only on GPU)
+  batch_size: 64  # Batch size for feature extraction (increased for CPU efficiency)
+
+# Video Processing
+video:
+  keyframe_interval: 2.0  # Extract 1 frame every 2 seconds (faster, still good accuracy)
+  skip_initial_seconds: 5  # Skip first N seconds to avoid transition artifacts (increased from 3)
+  resize_width: 224
+  resize_height: 224
+  model: "clip"  # Options: clip, resnet50, efficientnet
+  sampling_mode: "interval"  # interval (current behavior) or uniform (sample frames evenly across the video)
+  max_keyframes: 64          # Max number of keyframes per video (tune based on hardware)
+  
+# Audio Processing
+audio:
+  sample_rate: 22050
+  duration_limit: 180  # Maximum audio duration to process (seconds)
+  skip_initial_seconds: 5  # Skip first N seconds (intro/noise)
+  num_segments: 10  # Extract features from multiple segments for better coverage (increased for singer count accuracy)
+  
+# Processing Performance
+processing:
+  max_code_group_workers: 8  # Max parallel workers for Code group processing (recommended: 4-16)
+  # For 10,000 rows with many Code groups, use 8-16 workers
+  # Too many workers (>16) can cause overhead and memory issues
+
+# Comparison Thresholds
+thresholds:
+  audio_similarity: 0.65  # Lowered from 0.70 - more lenient for audio matching
+  video_similarity: 0.75  # Lowered from 0.85 - HARD gate was blocking valid pairs
+  combined_similarity: 0.70  # Lowered from 0.72 - main detection threshold
+  compare_within_same_type_only: true  # If true, only compare videos within the same Type group in a Code group
+  singer_mismatch_penalty: 0.90  # Raised from 0.85 - singer detection unreliable, minimal penalty
+  # Special handling: Static images use audio-only (no threshold reduction needed)
+  # Special handling: Remix detection uses adaptive penalty based on base similarity
+  # ↑ Lower this value (e.g., 0.65-0.70) if not detecting known reuploads
+  # ↑ Raise this value (e.g., 0.75-0.85) if getting too many false positives
+  karaoke_text_confidence: 0.5
+  optical_flow_threshold: 5.0  # For distinguishing static vs dynamic
+
+# Weights for combined score
+weights:
+  audio: 0.4
+  video: 0.4
+  scene: 0.2
+
+# Karaoke Detection
+karaoke:
+  ocr_engine: "easyocr"  # easyocr or paddleocr
+  languages: ['en', 'vi']  # Supported languages
+  text_region: [0.6, 1.0]  # Bottom 40% of screen (y axis)
+  
+# Output
+output:
+  export_format: "xlsx"  # xlsx or csv
+  include_thumbnails: true
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+
+# UI settings
+ui:
+  theme: "dark"  # Options: dark, light
+

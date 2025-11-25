@@ -1,0 +1,29 @@
+Rows: 25
+Columns: ['STT', 'ID Video', 'Link', 'Code', 'Thời gian', 'Type']
+
+    STT     ID Video                                                  Link      Code            Thời gian        Type
+0     1  PhwNJy8K7Ho   https://www.youtube.com/watch?v=PhwNJy8K7Ho&t=2691s   6561661        44:51 - 46:09       Video
+1     2  fryIlwX6mRM    https://www.youtube.com/watch?v=fryIlwX6mRM&t=262s   6561661        04:22 - 05:40       Video
+2     3  XNzMHre4tTI   https://www.youtube.com/watch?v=XNzMHre4tTI&t=3289s   6561661    0:54:49 - 0:56:07       Audio
+3     4  7kUn0oOMjAs   https://www.youtube.com/watch?v=7kUn0oOMjAs&t=4146s   6561661    1:09:06 - 1:10:23       Video
+4     5  BnCo8hPQGdM   https://www.youtube.com/watch?v=BnCo8hPQGdM&t=3200s   6561661    0:53:20 - 0:54:37       Video
+5     6  Gf8o3IiTeh4  https://www.youtube.com/watch?v=Gf8o3IiTeh4&t=11210s   6561661    3:06:50 - 3:08:16       Audio
+6     7  SrmO_zCnrw8  https://www.youtube.com/watch?v=SrmO_zCnrw8&t=11654s   6561661    3:14:14 - 3:15:40       Audio
+7     8  TsCWPygQ4lA   https://www.youtube.com/watch?v=TsCWPygQ4lA&t=7501s   6561661    2:05:01 - 2:06:26       Audio
+8     9  plRNs85pEIE    https://www.youtube.com/watch?v=plRNs85pEIE&t=324s   6561661    0:05:24 - 0:06:48       Audio
+9    10  iUzGHolzPfE   https://www.youtube.com/watch?v=iUzGHolzPfE&t=1406s   6561680        23:26 - 24:44       Video
+10   11  M9rWoaa5HRM   https://www.youtube.com/watch?v=M9rWoaa5HRM&t=3831s   6561680    1:03:51 - 1:05:09       Video
+11   12  PAubzPYFQUU    https://www.youtube.com/watch?v=PAubzPYFQUU&t=251s   6561680    0:04:11 - 0:05:28       Video
+12   13  BG6CwnGrZGs   https://www.youtube.com/watch?v=BG6CwnGrZGs&t=3690s   6561680    1:01:30 - 1:02:49       Audio
+13   14  2Bbhv-C8OJI      https://www.youtube.com/watch?v=2Bbhv-C8OJI&t=1s  12158504        00:01 - 04:28  Mv Karaoke
+14   15  aQwKwnaO_CE      https://www.youtube.com/watch?v=aQwKwnaO_CE&t=1s  12158504        00:01 - 04:28       Video
+15   16  l9OX2Xb2WPw   https://www.youtube.com/watch?v=l9OX2Xb2WPw&t=3304s  12158504  00:55:04 - 00:59:32       Audio
+16   17  9YOH4eGJQsU   https://www.youtube.com/watch?v=9YOH4eGJQsU&t=2423s  12158504  00:40:23 - 00:44:45       Video
+17   18  TqBNJPx_Kpo      https://www.youtube.com/watch?v=TqBNJPx_Kpo&t=1s  12158597        00:01 - 05:43       Audio
+18   19  d8HF7qHGo1o   https://www.youtube.com/watch?v=d8HF7qHGo1o&t=1723s  12158597  00:28:43 - 00:34:07       Video
+19   20  c5B-fvCyyjU      https://www.youtube.com/watch?v=c5B-fvCyyjU&t=0s  12158605        00:00 - 05:12  Mv Karaoke
+20   21  1VT39X97VH8      https://www.youtube.com/watch?v=1VT39X97VH8&t=0s  12158605        00:00 - 05:12  Mv Karaoke
+21   22  rrWL6OUH9g8      https://www.youtube.com/watch?v=rrWL6OUH9g8&t=0s  12158605        00:00 - 05:12  Mv Karaoke
+22   23  A383JgqOw2E      https://www.youtube.com/watch?v=A383JgqOw2E&t=0s  12158605        00:00 - 05:12       Video
+23   24  l9OX2Xb2WPw   https://www.youtube.com/watch?v=l9OX2Xb2WPw&t=2992s  12158605  00:49:52 - 00:55:00       Audio
+24   25  9YOH4eGJQsU   https://www.youtube.com/watch?v=9YOH4eGJQsU&t=2692s  12158605  00:44:52 - 00:50:01       Video
