@@ -67,23 +67,62 @@ def analyze_videos():
 
         df = pd.read_excel(file_path) if file.filename.endswith(('.xlsx', '.xls')) else pd.read_csv(file_path)
 
-        required_columns = ['Link YouTube']
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        if missing_columns:
-            return jsonify({
-                'success': False,
-                'error': f'Missing required columns: {", ".join(missing_columns)}'
-            }), 400
+        print("\n" + "="*80)
+        print("FILE ANALYSIS")
+        print("="*80)
+        print(f"File: {file.filename}")
+        print(f"Total rows: {len(df)}")
+        print(f"Columns: {df.columns.tolist()}")
+        print("="*80 + "\n")
 
-        urls = df['Link YouTube'].dropna().tolist()
+        logger.info(f"File columns: {df.columns.tolist()}")
+        logger.info(f"Total rows: {len(df)}")
+
+        url_column = None
+        possible_url_columns = ['Link', 'link', 'Link YouTube', 'link youtube', 'URL', 'url', 'Video URL', 'video_url']
+        for col in possible_url_columns:
+            if col in df.columns:
+                url_column = col
+                print(f"✓ Found URL column: '{col}'")
+                logger.info(f"Found URL column: {col}")
+                break
+
+        if url_column is None:
+            available_cols = ', '.join(df.columns.tolist())
+            error_msg = f'Không tìm thấy cột URL. Các cột có sẵn: {available_cols}'
+            print(f"✗ ERROR: {error_msg}\n")
+            return jsonify({'success': False, 'error': error_msg}), 400
+
+        urls = df[url_column].dropna().tolist()
         metadata = df.to_dict('records')
 
-        logger.info(f"File uploaded: {file.filename} ({len(urls)} videos)")
+        print(f"✓ Found {len(urls)} video URLs\n")
+        logger.info(f"Found {len(urls)} video URLs")
 
         audio_threshold = float(request.form.get('audio_threshold', 0.65))
         video_threshold = float(request.form.get('video_threshold', 0.75))
         combined_threshold = float(request.form.get('combined_threshold', 0.70))
         gpu_enabled = request.form.get('gpu_enabled', 'true').lower() == 'true'
+
+        print("="*80)
+        print("STARTING VIDEO ANALYSIS")
+        print("="*80)
+        print(f"Total videos: {len(urls)}")
+        print(f"Audio threshold: {audio_threshold}")
+        print(f"Video threshold: {video_threshold}")
+        print(f"Combined threshold: {combined_threshold}")
+        print(f"GPU enabled: {gpu_enabled}")
+        print("="*80 + "\n")
+
+        logger.info("="*80)
+        logger.info("STARTING VIDEO ANALYSIS")
+        logger.info("="*80)
+        logger.info(f"Total videos: {len(urls)}")
+        logger.info(f"Audio threshold: {audio_threshold}")
+        logger.info(f"Video threshold: {video_threshold}")
+        logger.info(f"Combined threshold: {combined_threshold}")
+        logger.info(f"GPU enabled: {gpu_enabled}")
+        logger.info("="*80)
 
         current_config = config.copy()
         current_config['thresholds']['audio_similarity'] = audio_threshold
@@ -94,9 +133,11 @@ def analyze_videos():
         pipeline_instance = ProcessingPipeline(current_config)
 
         def progress_callback(current, total, status):
+            print(f"[{current}/{total}] {status}")
             logger.info(f"Progress: {current}/{total} - {status}")
 
         def log_callback(message):
+            print(f"  → {message}")
             logger.info(message)
 
         results = pipeline_instance.process(
@@ -122,11 +163,34 @@ def analyze_videos():
             }
         }
 
-        logger.info(f"Processing complete: {statistics['total_reuploads']} reuploads found")
+        print("\n" + "="*80)
+        print("ANALYSIS COMPLETE")
+        print("="*80)
+        print(f"Total videos: {statistics['total_videos']}")
+        print(f"Reuploads found: {statistics['total_reuploads']}")
+        print(f"Reupload percentage: {statistics['reupload_percentage']:.1f}%")
+        print(f"Clusters: {statistics['clusters']}")
+        print(f"Average similarity: {statistics['average_similarity']*100:.1f}%")
+        print("="*80 + "\n")
+
+        logger.info("="*80)
+        logger.info("ANALYSIS COMPLETE")
+        logger.info(f"Total videos: {statistics['total_videos']}")
+        logger.info(f"Reuploads found: {statistics['total_reuploads']}")
+        logger.info(f"Reupload percentage: {statistics['reupload_percentage']:.1f}%")
+        logger.info(f"Clusters: {statistics['clusters']}")
+        logger.info(f"Average similarity: {statistics['average_similarity']*100:.1f}%")
+        logger.info("="*80)
 
         return jsonify(response)
 
     except Exception as e:
+        print("\n" + "="*80)
+        print(f"ERROR: {e}")
+        print("="*80 + "\n")
+        logger.error("="*80)
+        logger.error(f"ERROR: {e}")
+        logger.error("="*80)
         logger.error(f"Processing error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
