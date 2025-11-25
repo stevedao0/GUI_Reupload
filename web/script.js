@@ -184,6 +184,10 @@ class YouTubeContentDetector {
         formData.append('gpu_enabled', this.gpuEnabled.checked);
 
         try {
+            this.progressText.textContent = 'Đang tải lên file và bắt đầu phân tích...';
+            this.progressBar.style.width = '5%';
+            this.currentStep.textContent = '1';
+
             const response = await fetch('/api/analyze', {
                 method: 'POST',
                 body: formData
@@ -193,42 +197,21 @@ class YouTubeContentDetector {
 
             if (result.success) {
                 this.jobId = result.job_id;
-                this.pollProgress();
+                this.isProcessing = false;
+                clearInterval(this.timerInterval);
+                this.showResults(result.results);
             } else {
                 throw new Error(result.error || 'Unknown error');
             }
         } catch (error) {
-            alert('Lỗi khi bắt đầu phân tích: ' + error.message);
+            alert('Lỗi khi phân tích: ' + error.message);
             console.error(error);
             this.cancelAnalysis();
         }
     }
 
     async pollProgress() {
-        if (!this.jobId) return;
-
-        try {
-            const response = await fetch(`/api/status/${this.jobId}`);
-            const data = await response.json();
-
-            if (data.status === 'processing') {
-                this.updateProgress(data.progress);
-
-                if (this.isProcessing) {
-                    setTimeout(() => this.pollProgress(), 1000);
-                }
-            } else if (data.status === 'completed') {
-                this.isProcessing = false;
-                clearInterval(this.timerInterval);
-                this.showResults(data.results);
-            } else if (data.status === 'failed') {
-                throw new Error(data.error || 'Processing failed');
-            }
-        } catch (error) {
-            console.error('Error polling progress:', error);
-            alert('Lỗi khi kiểm tra tiến độ');
-            this.cancelAnalysis();
-        }
+        // Không cần poll vì xử lý đồng bộ
     }
 
     updateProgress(progress) {
@@ -246,8 +229,10 @@ class YouTubeContentDetector {
         this.reuploadPercent.textContent = `${results.reupload_percent || 0}%`;
         this.clusterCount.textContent = results.cluster_count || 0;
 
-        document.getElementById('statTotalVideos').textContent = results.total_videos || 0;
-        document.getElementById('statReuploads').textContent = results.reupload_count || 0;
+        const statTotal = document.getElementById('statTotalVideos');
+        const statReuploads = document.getElementById('statReuploads');
+        if (statTotal) statTotal.textContent = results.total_videos || 0;
+        if (statReuploads) statReuploads.textContent = results.reupload_count || 0;
 
         console.log('Analysis complete:', results);
     }

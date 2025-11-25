@@ -46,49 +46,89 @@ def serve_static(path):
     return send_from_directory('.', path)
 
 
-@app.route('/api/upload', methods=['POST'])
-def upload_file():
+@app.route('/api/analyze', methods=['POST'])
+def analyze_videos():
+    global current_results
+
     try:
         if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
 
         file = request.files['file']
         if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
 
-        if not file.filename.endswith(('.xlsx', '.xls')):
-            return jsonify({'error': 'Invalid file format. Only .xlsx and .xls allowed'}), 400
+        if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+            return jsonify({'success': False, 'error': 'Invalid file format'}), 400
 
         temp_dir = tempfile.mkdtemp()
         file_path = os.path.join(temp_dir, file.filename)
         file.save(file_path)
 
-        df = pd.read_excel(file_path)
+        df = pd.read_excel(file_path) if file.filename.endswith(('.xlsx', '.xls')) else pd.read_csv(file_path)
 
-        required_columns = ['Link YouTube', 'Code']
+        required_columns = ['Link YouTube']
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             return jsonify({
+                'success': False,
                 'error': f'Missing required columns: {", ".join(missing_columns)}'
             }), 400
 
         urls = df['Link YouTube'].dropna().tolist()
-        codes = df['Code'].dropna().unique().tolist()
+        metadata = df.to_dict('records')
 
-        preview_data = {
-            'totalVideos': len(urls),
-            'totalCodes': len(codes),
-            'filePath': file_path,
-            'columns': df.columns.tolist()
+        logger.info(f"File uploaded: {file.filename} ({len(urls)} videos)")
+
+        audio_threshold = float(request.form.get('audio_threshold', 0.65))
+        video_threshold = float(request.form.get('video_threshold', 0.75))
+        combined_threshold = float(request.form.get('combined_threshold', 0.70))
+        gpu_enabled = request.form.get('gpu_enabled', 'true').lower() == 'true'
+
+        current_config = config.copy()
+        current_config['thresholds']['audio_similarity'] = audio_threshold
+        current_config['thresholds']['video_similarity'] = video_threshold
+        current_config['thresholds']['combined_similarity'] = combined_threshold
+        current_config['gpu']['enabled'] = gpu_enabled
+
+        pipeline_instance = ProcessingPipeline(current_config)
+
+        def progress_callback(current, total, status):
+            logger.info(f"Progress: {current}/{total} - {status}")
+
+        def log_callback(message):
+            logger.info(message)
+
+        results = pipeline_instance.process(
+            urls=urls,
+            metadata=metadata,
+            progress_callback=progress_callback,
+            log_callback=log_callback
+        )
+
+        current_results = results
+
+        statistics = results['statistics']
+
+        response = {
+            'success': True,
+            'job_id': 'job_' + datetime.now().strftime('%Y%m%d_%H%M%S'),
+            'results': {
+                'total_videos': statistics['total_videos'],
+                'reupload_count': statistics['total_reuploads'],
+                'reupload_percent': round(statistics['reupload_percentage'], 1),
+                'cluster_count': statistics['clusters'],
+                'avg_similarity': round(statistics['average_similarity'] * 100, 1)
+            }
         }
 
-        logger.info(f"File uploaded: {file.filename} ({len(urls)} videos, {len(codes)} codes)")
+        logger.info(f"Processing complete: {statistics['total_reuploads']} reuploads found")
 
-        return jsonify(preview_data)
+        return jsonify(response)
 
     except Exception as e:
-        logger.error(f"Upload error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Processing error: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/process', methods=['POST'])
@@ -159,8 +199,8 @@ def process_videos():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/export', methods=['GET'])
-def export_results():
+@app.route('/api/export/<job_id>', methods=['GET'])
+def export_results(job_id):
     global current_results
 
     try:
@@ -186,6 +226,40 @@ def export_results():
     except Exception as e:
         logger.error(f"Export error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/status/<job_id>', methods=['GET'])
+def get_job_status(job_id):
+    global current_results
+
+    if current_results is None:
+        return jsonify({
+            'status': 'processing',
+            'progress': {
+                'percent': 0,
+                'step': 0,
+                'message': 'Đang khởi tạo...'
+            }
+        })
+
+    statistics = current_results.get('statistics', {})
+
+    return jsonify({
+        'status': 'completed',
+        'results': {
+            'total_videos': statistics.get('total_videos', 0),
+            'reupload_count': statistics.get('total_reuploads', 0),
+            'reupload_percent': round(statistics.get('reupload_percentage', 0), 1),
+            'cluster_count': statistics.get('clusters', 0),
+            'avg_similarity': round(statistics.get('average_similarity', 0) * 100, 1)
+        }
+    })
+
+
+@app.route('/api/cancel/<job_id>', methods=['POST'])
+def cancel_job(job_id):
+    logger.info(f"Cancelling job: {job_id}")
+    return jsonify({'success': True})
 
 
 @app.route('/api/status', methods=['GET'])
