@@ -3,297 +3,295 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Reupload Detector</title>
+    <title>YouTube Content Detector</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
+    <div class="app">
         <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <svg class="logo-icon" viewBox="0 0 24 24">
-                    <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
-                </svg>
-                <div>
-                    <h1>YouTube Reupload Detector</h1>
-                    <p class="subtitle">Phát hiện video trùng lặp bằng AI</p>
+        <header class="top-header">
+            <div class="header-left">
+                <div class="app-icon">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="2"/>
+                        <path d="M10 9l5 3-5 3V9z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <div class="app-title">
+                    <h1>YouTube Content Detector</h1>
+                    <p>Nhận dạng video reupload và nội dung trùng lặp</p>
                 </div>
             </div>
-            <div class="status-badge" id="statusBadge">
-                <span class="status-dot"></span>
-                <span>Sẵn sàng</span>
+            <div class="header-right">
+                <button class="btn-outline">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12h18M3 6h18M3 18h18"/>
+                    </svg>
+                    Lịch sử
+                </button>
+                <button class="btn-primary-header">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 3v18h18"/>
+                        <path d="M18 9l-6 6-3-3-3 3"/>
+                    </svg>
+                    Thống kê
+                </button>
             </div>
         </header>
 
         <!-- Main Content -->
-        <div class="main-content">
-            <!-- Left Panel: Upload & Config -->
-            <aside class="left-panel">
-                <!-- File Upload Section -->
-                <section class="card upload-section">
-                    <h2>
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
+        <main class="main-container">
+            <!-- Tab Navigation -->
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="upload">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Tải dữ liệu
+                </button>
+                <button class="tab-btn" data-tab="compare">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v6m0 6v6"/>
+                    </svg>
+                    So sánh
+                </button>
+                <button class="tab-btn" data-tab="results">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 11 12 14 22 4"/>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                    Kết quả
+                </button>
+            </nav>
+
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-content">
+                        <div class="stat-header">
+                            <span class="stat-label">Video đã quét</span>
+                            <span class="stat-trend positive">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 15l-6-6-6 6"/>
+                                </svg>
+                                +12.5% tuần này
+                            </span>
+                        </div>
+                        <div class="stat-value">1,247</div>
+                    </div>
+                    <div class="stat-icon blue">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="6" width="20" height="12" rx="2"/>
+                            <polygon points="10 9 15 12 10 15" fill="currentColor"/>
                         </svg>
-                        Import File Excel
-                    </h2>
-                    <div class="upload-zone" id="uploadZone">
-                        <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
-                        <svg class="upload-icon" viewBox="0 0 24 24">
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-content">
+                        <div class="stat-header">
+                            <span class="stat-label">Trùng lặp phát hiện</span>
+                            <span class="stat-trend positive">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 15l-6-6-6 6"/>
+                                </svg>
+                                +8.2% tuần này
+                            </span>
+                        </div>
+                        <div class="stat-value">89</div>
+                    </div>
+                    <div class="stat-icon red">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 15l-6-6-6 6"/>
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-content">
+                        <div class="stat-header">
+                            <span class="stat-label">Thời gian xử lý TB</span>
+                            <span class="stat-trend negative">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M6 9l6 6 6-6"/>
+                                </svg>
+                                -15% nhanh hơn
+                            </span>
+                        </div>
+                        <div class="stat-value">2.4s</div>
+                    </div>
+                    <div class="stat-icon green">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-content">
+                        <div class="stat-header">
+                            <span class="stat-label">Kênh theo dõi</span>
+                            <span class="stat-trend positive">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 15l-6-6-6 6"/>
+                                </svg>
+                                +24 tháng này
+                            </span>
+                        </div>
+                        <div class="stat-value">156</div>
+                    </div>
+                    <div class="stat-icon purple">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="upload-container">
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
+                <div class="upload-box" id="uploadBox">
+                    <div class="upload-icon-wrapper">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                        </svg>
+                    </div>
+                    <h3>Tải lên file Excel danh sách video</h3>
+                    <p>Kéo thả file hoặc nhấp để chọn. Hỗ trợ định dạng .xlsx, .xls, .csv</p>
+                    <button class="btn-upload" id="uploadBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                             <polyline points="17 8 12 3 7 8"/>
                             <line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
-                        <p>Kéo thả file Excel vào đây</p>
-                        <p class="upload-hint">hoặc <span class="upload-link">chọn file</span></p>
-                        <p class="file-format">Định dạng: .xlsx, .xls</p>
-                    </div>
-                    <div class="file-info" id="fileInfo" style="display: none;">
-                        <div class="file-preview">
-                            <svg class="file-icon" viewBox="0 0 24 24">
-                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-                                <polyline points="13 2 13 9 20 9"/>
-                            </svg>
-                            <div>
-                                <p class="file-name" id="fileName"></p>
-                                <p class="file-size" id="fileSize"></p>
-                            </div>
-                        </div>
-                        <button class="btn-remove" id="removeFile">
-                            <svg viewBox="0 0 24 24">
-                                <line x1="18" y1="6" x2="6" y2="18"/>
-                                <line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="data-preview" id="dataPreview" style="display: none;">
-                        <h3>Dữ liệu tải lên</h3>
-                        <div class="preview-stats">
-                            <div class="stat-item">
-                                <span class="stat-label">Tổng video:</span>
-                                <span class="stat-value" id="totalVideos">0</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-label">Số Code:</span>
-                                <span class="stat-value" id="totalCodes">0</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                        Chọn file
+                    </button>
+                </div>
 
-                <!-- Configuration Section -->
-                <section class="card config-section">
-                    <h2>
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="3"/>
-                            <path d="M12 1v6m0 6v6m5.66-13L13 10.34M13 13.66L17.66 18m0-13L13 9.66M13 14.34L17.66 6"/>
-                        </svg>
-                        Cấu hình
-                    </h2>
-                    <div class="config-group">
+                <div class="upload-info">
+                    <div class="info-item">
+                        <h4>Cột bắt buộc</h4>
+                        <p>Video URL</p>
+                    </div>
+                    <div class="info-item">
+                        <h4>Tùy chọn</h4>
+                        <p>Tiêu đề, Kênh</p>
+                    </div>
+                    <div class="info-item">
+                        <h4>Metadata</h4>
+                        <p>Views, Ngày tải</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Info Card (Hidden initially) -->
+            <div class="file-info-card" id="fileInfoCard" style="display: none;">
+                <div class="file-preview">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                        <polyline points="13 2 13 9 20 9"/>
+                    </svg>
+                    <div class="file-details">
+                        <h4 id="fileName">filename.xlsx</h4>
+                        <p id="fileStats">150 videos • 2.5 MB</p>
+                    </div>
+                </div>
+                <button class="btn-remove" id="removeBtn">Xóa</button>
+            </div>
+
+            <!-- Settings Panel (Hidden initially) -->
+            <div class="settings-panel" id="settingsPanel" style="display: none;">
+                <h3>Cài đặt phân tích</h3>
+                <div class="settings-grid">
+                    <div class="setting-group">
                         <label>Ngưỡng Audio Similarity</label>
-                        <div class="slider-container">
+                        <div class="slider-wrapper">
                             <input type="range" id="audioThreshold" min="0.5" max="1.0" step="0.05" value="0.65">
-                            <span class="slider-value" id="audioThresholdValue">65%</span>
+                            <span class="slider-value" id="audioValue">65%</span>
                         </div>
-                        <p class="config-hint">Độ tương đồng âm thanh để phát hiện reupload</p>
                     </div>
-                    <div class="config-group">
+                    <div class="setting-group">
                         <label>Ngưỡng Video Similarity</label>
-                        <div class="slider-container">
+                        <div class="slider-wrapper">
                             <input type="range" id="videoThreshold" min="0.5" max="1.0" step="0.05" value="0.75">
-                            <span class="slider-value" id="videoThresholdValue">75%</span>
+                            <span class="slider-value" id="videoValue">75%</span>
                         </div>
-                        <p class="config-hint">Độ tương đồng hình ảnh để phát hiện reupload</p>
                     </div>
-                    <div class="config-group">
-                        <label>Ngưỡng Combined Similarity</label>
-                        <div class="slider-container">
-                            <input type="range" id="combinedThreshold" min="0.5" max="1.0" step="0.05" value="0.70">
-                            <span class="slider-value" id="combinedThresholdValue">70%</span>
-                        </div>
-                        <p class="config-hint">Độ tương đồng tổng hợp (âm thanh + hình ảnh)</p>
-                    </div>
-                    <div class="config-group">
+                    <div class="setting-group checkbox-group">
                         <label>
                             <input type="checkbox" id="gpuEnabled" checked>
-                            Sử dụng GPU (nhanh hơn)
+                            <span>Sử dụng GPU (nhanh hơn)</span>
                         </label>
                     </div>
-                </section>
-
-                <!-- Action Button -->
-                <button class="btn-primary btn-start" id="startBtn" disabled>
-                    <svg viewBox="0 0 24 24">
-                        <polygon points="5 3 19 12 5 21 5 3"/>
+                </div>
+                <button class="btn-analyze" id="analyzeBtn">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21"/>
                     </svg>
                     Bắt đầu phân tích
                 </button>
-            </aside>
+            </div>
 
-            <!-- Right Panel: Results & Logs -->
-            <main class="right-panel">
-                <!-- Progress Section -->
-                <section class="card progress-section" id="progressSection" style="display: none;">
-                    <h2>
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <line x1="12" y1="2" x2="12" y2="6"/>
-                            <line x1="12" y1="18" x2="12" y2="22"/>
-                            <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
-                            <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
-                        </svg>
-                        Tiến trình xử lý
-                    </h2>
-                    <div class="progress-info">
-                        <div class="progress-header">
-                            <span class="progress-text" id="progressText">Đang khởi động...</span>
-                            <span class="progress-percent" id="progressPercent">0%</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progressFill"></div>
-                        </div>
-                        <div class="progress-stats">
-                            <div class="stat-item">
-                                <span class="stat-label">Bước hiện tại:</span>
-                                <span class="stat-value" id="currentStep">0/6</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-label">Thời gian:</span>
-                                <span class="stat-value" id="elapsedTime">0s</span>
-                            </div>
-                        </div>
-                    </div>
-                    <button class="btn-cancel" id="cancelBtn">
-                        <svg viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="15" y1="9" x2="9" y2="15"/>
-                            <line x1="9" y1="9" x2="15" y2="15"/>
-                        </svg>
-                        Hủy xử lý
-                    </button>
-                </section>
+            <!-- Progress Card (Hidden initially) -->
+            <div class="progress-card" id="progressCard" style="display: none;">
+                <h3>Đang xử lý...</h3>
+                <div class="progress-bar-wrapper">
+                    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                </div>
+                <p class="progress-text" id="progressText">Đang tải video...</p>
+                <div class="progress-stats">
+                    <span>Bước <span id="currentStep">1</span>/6</span>
+                    <span id="elapsedTime">0s</span>
+                </div>
+                <button class="btn-cancel" id="cancelBtn">Hủy</button>
+            </div>
 
-                <!-- Results Section -->
-                <section class="card results-section" id="resultsSection" style="display: none;">
-                    <h2>
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                        </svg>
-                        Kết quả phân tích
-                    </h2>
-                    <div class="results-summary">
-                        <div class="result-card">
-                            <div class="result-icon video-icon">
-                                <svg viewBox="0 0 24 24">
-                                    <path d="M23 7l-7 5 7 5V7z"/>
-                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-                                </svg>
-                            </div>
-                            <div class="result-info">
-                                <p class="result-label">Tổng video</p>
-                                <p class="result-value" id="resultTotalVideos">0</p>
-                            </div>
-                        </div>
-                        <div class="result-card">
-                            <div class="result-icon reupload-icon">
-                                <svg viewBox="0 0 24 24">
-                                    <polyline points="17 1 21 5 17 9"/>
-                                    <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
-                                    <polyline points="7 23 3 19 7 15"/>
-                                    <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
-                                </svg>
-                            </div>
-                            <div class="result-info">
-                                <p class="result-label">Video reupload</p>
-                                <p class="result-value" id="resultReuploads">0</p>
-                            </div>
-                        </div>
-                        <div class="result-card">
-                            <div class="result-icon percent-icon">
-                                <svg viewBox="0 0 24 24">
-                                    <line x1="19" y1="5" x2="5" y2="19"/>
-                                    <circle cx="6.5" cy="6.5" r="2.5"/>
-                                    <circle cx="17.5" cy="17.5" r="2.5"/>
-                                </svg>
-                            </div>
-                            <div class="result-info">
-                                <p class="result-label">Tỷ lệ reupload</p>
-                                <p class="result-value" id="resultPercentage">0%</p>
-                            </div>
-                        </div>
-                        <div class="result-card">
-                            <div class="result-icon cluster-icon">
-                                <svg viewBox="0 0 24 24">
-                                    <circle cx="12" cy="8" r="5"/>
-                                    <circle cx="7" cy="18" r="4"/>
-                                    <circle cx="17" cy="18" r="4"/>
-                                </svg>
-                            </div>
-                            <div class="result-info">
-                                <p class="result-label">Số cụm reupload</p>
-                                <p class="result-value" id="resultClusters">0</p>
-                            </div>
-                        </div>
-                    </div>
-                    <button class="btn-primary btn-export" id="exportBtn">
-                        <svg viewBox="0 0 24 24">
+            <!-- Results Container (Hidden initially) -->
+            <div class="results-container" id="resultsContainer" style="display: none;">
+                <div class="results-header">
+                    <h3>Kết quả phân tích</h3>
+                    <button class="btn-export" id="exportBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                             <polyline points="7 10 12 15 17 10"/>
                             <line x1="12" y1="15" x2="12" y2="3"/>
                         </svg>
-                        Xuất kết quả Excel
+                        Xuất Excel
                     </button>
-                </section>
-
-                <!-- Terminal Log Section -->
-                <section class="card terminal-section">
-                    <h2>
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <polyline points="4 17 10 11 4 5"/>
-                            <line x1="12" y1="19" x2="20" y2="19"/>
-                        </svg>
-                        Terminal Logs
-                    </h2>
-                    <div class="terminal" id="terminal">
-                        <div class="terminal-line">
-                            <span class="terminal-prompt">$</span>
-                            <span class="terminal-text">YouTube Reupload Detector v1.3.0</span>
-                        </div>
-                        <div class="terminal-line">
-                            <span class="terminal-prompt">$</span>
-                            <span class="terminal-text">Sẵn sàng xử lý...</span>
-                        </div>
+                </div>
+                <div class="results-grid">
+                    <div class="result-item">
+                        <span class="result-label">Tổng video:</span>
+                        <span class="result-value" id="totalVideos">0</span>
                     </div>
-                    <div class="terminal-actions">
-                        <button class="btn-icon" id="clearLogsBtn" title="Xóa logs">
-                            <svg viewBox="0 0 24 24">
-                                <polyline points="3 6 5 6 21 6"/>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                            </svg>
-                        </button>
-                        <button class="btn-icon" id="copyLogsBtn" title="Copy logs">
-                            <svg viewBox="0 0 24 24">
-                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                            </svg>
-                        </button>
+                    <div class="result-item">
+                        <span class="result-label">Video reupload:</span>
+                        <span class="result-value" id="reuploadCount">0</span>
                     </div>
-                </section>
-            </main>
-        </div>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <p>© 2024 YouTube Reupload Detector | Phát triển bởi AI Analysis Team</p>
-            <div class="footer-links">
-                <a href="#docs">Tài liệu</a>
-                <a href="#support">Hỗ trợ</a>
-                <a href="#about">Giới thiệu</a>
+                    <div class="result-item">
+                        <span class="result-label">Tỷ lệ:</span>
+                        <span class="result-value" id="reuploadPercent">0%</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Số cụm:</span>
+                        <span class="result-value" id="clusterCount">0</span>
+                    </div>
+                </div>
             </div>
-        </footer>
+        </main>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
