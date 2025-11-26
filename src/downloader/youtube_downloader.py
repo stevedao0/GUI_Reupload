@@ -2,9 +2,11 @@
 import yt_dlp
 import subprocess
 import time
+import signal
+import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Callable, Tuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError
 from dataclasses import dataclass
 import json
 from ..utils.logger import setup_logger
@@ -318,33 +320,53 @@ class YouTubeDownloader:
             video_opts = {
                 'format': self._get_format_string(),
                 'outtmpl': str(temp_video_path.with_suffix('')),
-                'quiet': False,  # Show progress
-                'no_warnings': False,  # Allow warnings (they're filtered by logger)
+                'quiet': False,
+                'no_warnings': False,
                 'progress_hooks': [progress_hook],
                 'extract_flat': False,
                 'writesubtitles': False,
                 'writeautomaticsub': False,
-                # FFmpeg location (bundled or system)
                 'ffmpeg_location': get_ffmpeg_path(),
-                # Speed optimization
                 'concurrent_fragment_downloads': self.concurrent_fragments,
                 'retries': self.retries,
                 'fragment_retries': self.fragment_retries,
-                'http_chunk_size': 10485760,  # 10MB chunks
-                'buffersize': 1024 * 1024 * 4,  # 4MB buffer
+                'http_chunk_size': 10485760,
+                'buffersize': 1024 * 1024 * 4,
+                'merge_output_format': 'mp4',
                 'postprocessors': [{
                     'key': 'FFmpegVideoConvertor',
                     'preferedformat': 'mp4',
                 }],
+                'postprocessor_args': {
+                    'ffmpeg': [
+                        '-threads', '4',
+                        '-preset', 'ultrafast',
+                        '-movflags', '+faststart',
+                        '-hide_banner',
+                        '-loglevel', 'warning',
+                        '-y'
+                    ]
+                },
             }
             
             if is_segment:
                 logger.info(f"Downloading video segment ({start_time}s-{end_time}s): {url}")
             else:
                 logger.info(f"Downloading video: {url}")
-                
-            with yt_dlp.YoutubeDL(video_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
+
+            # Download with timeout using ThreadPoolExecutor
+            download_timeout = 600  # 10 minutes max per video
+            executor = ThreadPoolExecutor(max_workers=1)
+
+            def download_video_task():
+                with yt_dlp.YoutubeDL(video_opts) as ydl:
+                    return ydl.extract_info(url, download=True)
+
+            try:
+                logger.info(f"⏱️  Starting video download (timeout: {download_timeout}s)...")
+                future = executor.submit(download_video_task)
+                info = future.result(timeout=download_timeout)
+
                 metadata = {
                     'id': info.get('id'),
                     'title': info.get('title'),
@@ -353,9 +375,15 @@ class YouTubeDownloader:
                     'duration': info.get('duration'),
                     'view_count': info.get('view_count'),
                     'like_count': info.get('like_count'),
-                    'description': info.get('description', '')[:500],  # First 500 chars
+                    'description': info.get('description', '')[:500],
                     'thumbnail': info.get('thumbnail'),
                 }
+            except TimeoutError:
+                logger.error(f"❌ Video download timeout after {download_timeout}s for {video_id}")
+                logger.warning(f"⚠️  FFmpeg conversion may be stuck. Skipping this video.")
+                raise Exception(f"Download timeout after {download_timeout}s")
+            finally:
+                executor.shutdown(wait=False)
             
             # Download audio separately
             def audio_progress_hook(d):
@@ -397,10 +425,27 @@ class YouTubeDownloader:
                     'preferredquality': self.audio_quality,
                 }],
             }
-            
+
             logger.info(f"🎵 Downloading audio...")
-            with yt_dlp.YoutubeDL(audio_opts) as ydl:
-                ydl.download([url])
+
+            # Audio download with timeout
+            audio_executor = ThreadPoolExecutor(max_workers=1)
+            audio_timeout = 300  # 5 minutes for audio
+
+            def download_audio_task():
+                with yt_dlp.YoutubeDL(audio_opts) as ydl:
+                    ydl.download([url])
+
+            try:
+                logger.info(f"⏱️  Starting audio download (timeout: {audio_timeout}s)...")
+                audio_future = audio_executor.submit(download_audio_task)
+                audio_future.result(timeout=audio_timeout)
+            except TimeoutError:
+                logger.error(f"❌ Audio download timeout after {audio_timeout}s for {video_id}")
+                logger.warning(f"⚠️  Skipping this video due to audio timeout.")
+                raise Exception(f"Audio download timeout after {audio_timeout}s")
+            finally:
+                audio_executor.shutdown(wait=False)
             
             # Trim if segment
             if is_segment:
