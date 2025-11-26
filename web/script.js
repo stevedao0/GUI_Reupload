@@ -33,6 +33,7 @@ class YouTubeContentDetector {
         this.combinedValue = document.getElementById('combinedValue');
         this.analyzeBtn = document.getElementById('analyzeBtn');
 
+        this.compareEmpty = document.getElementById('compareEmpty');
         this.progressCard = document.getElementById('progressCard');
         this.progressBar = document.getElementById('progressBar');
         this.progressText = document.getElementById('progressText');
@@ -205,6 +206,10 @@ class YouTubeContentDetector {
         this.isProcessing = true;
         this.switchTab('compare');
 
+        // Show progress, hide empty state
+        this.compareEmpty.style.display = 'none';
+        this.progressCard.style.display = 'block';
+
         this.startTime = Date.now();
         this.timerInterval = setInterval(() => this.updateTimer(), 1000);
 
@@ -219,6 +224,12 @@ class YouTubeContentDetector {
             this.progressText.textContent = 'Đang tải lên file và bắt đầu phân tích...';
             this.progressBar.style.width = '5%';
             this.currentStep.textContent = '1';
+
+            // Update progress percentage display
+            const progressPercentage = this.progressCard.querySelector('.progress-percentage');
+            if (progressPercentage) {
+                progressPercentage.textContent = '5%';
+            }
 
             const response = await fetch('/api/analyze', {
                 method: 'POST',
@@ -256,6 +267,12 @@ class YouTubeContentDetector {
         this.progressBar.style.width = `${percent}%`;
         this.progressText.textContent = progress.message || 'Đang xử lý...';
         this.currentStep.textContent = `${progress.step || 0}/6`;
+
+        // Update progress percentage display
+        const progressPercentage = this.progressCard.querySelector('.progress-percentage');
+        if (progressPercentage) {
+            progressPercentage.textContent = `${percent}%`;
+        }
     }
 
     showResults(results) {
