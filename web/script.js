@@ -5,10 +5,13 @@ class YouTubeContentDetector {
         this.startTime = null;
         this.timerInterval = null;
         this.jobId = null;
+        this.logEventSource = null;
+        this.autoScroll = true;
 
         this.initElements();
         this.attachEventListeners();
         this.initSliders();
+        this.initConsole();
     }
 
     initElements() {
@@ -47,6 +50,11 @@ class YouTubeContentDetector {
 
         this.tabBtns = document.querySelectorAll('.tab-btn');
         this.tabPanes = document.querySelectorAll('.tab-pane');
+
+        this.consolePanel = document.getElementById('consolePanel');
+        this.consoleBody = document.getElementById('consoleBody');
+        this.clearLogsBtn = document.getElementById('clearLogsBtn');
+        this.toggleConsoleBtn = document.getElementById('toggleConsoleBtn');
     }
 
     attachEventListeners() {
@@ -356,6 +364,88 @@ class YouTubeContentDetector {
         } catch (error) {
             // Ignore - server will be dead anyway
         }
+    }
+
+    initConsole() {
+        this.clearLogsBtn.addEventListener('click', () => this.clearLogs());
+        this.toggleConsoleBtn.addEventListener('click', () => this.toggleConsole());
+
+        this.consoleBody.addEventListener('scroll', () => {
+            const isAtBottom = this.consoleBody.scrollHeight - this.consoleBody.scrollTop <= this.consoleBody.clientHeight + 50;
+            this.autoScroll = isAtBottom;
+        });
+
+        this.connectLogStream();
+    }
+
+    connectLogStream() {
+        if (this.logEventSource) {
+            this.logEventSource.close();
+        }
+
+        this.logEventSource = new EventSource('/api/logs/stream');
+
+        this.logEventSource.onmessage = (event) => {
+            try {
+                const logEntry = JSON.parse(event.data);
+                this.addLogLine(logEntry);
+            } catch (error) {
+                console.error('Failed to parse log:', error);
+            }
+        };
+
+        this.logEventSource.onerror = (error) => {
+            console.error('Log stream error:', error);
+            setTimeout(() => this.connectLogStream(), 5000);
+        };
+    }
+
+    addLogLine(logEntry) {
+        const placeholder = this.consoleBody.querySelector('.console-placeholder');
+        if (placeholder) {
+            placeholder.remove();
+        }
+
+        const line = document.createElement('div');
+        line.className = 'console-line';
+
+        line.innerHTML = `
+            <span class="console-timestamp">${logEntry.timestamp}</span>
+            <span class="console-level ${logEntry.level}">${logEntry.level}</span>
+            <span class="console-message">${this.escapeHtml(logEntry.message)}</span>
+        `;
+
+        this.consoleBody.appendChild(line);
+
+        if (this.autoScroll) {
+            this.consoleBody.scrollTop = this.consoleBody.scrollHeight;
+        }
+
+        const maxLines = 1000;
+        const lines = this.consoleBody.querySelectorAll('.console-line');
+        if (lines.length > maxLines) {
+            lines[0].remove();
+        }
+    }
+
+    clearLogs() {
+        this.consoleBody.innerHTML = '<div class="console-placeholder">Logs cleared. Waiting for new logs...</div>';
+    }
+
+    toggleConsole() {
+        this.consolePanel.classList.toggle('collapsed');
+        const svg = this.toggleConsoleBtn.querySelector('svg polyline');
+        if (this.consolePanel.classList.contains('collapsed')) {
+            svg.setAttribute('points', '6 9 12 15 18 9');
+        } else {
+            svg.setAttribute('points', '18 15 12 9 6 15');
+        }
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     showNotification(message, type = 'info') {

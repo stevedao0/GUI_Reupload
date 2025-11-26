@@ -3,7 +3,7 @@ Flask API Server for YouTube Reupload Detector Web Interface
 Kết nối giữa web frontend và backend xử lý Python
 """
 
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory, Response
 from flask_cors import CORS
 import sys
 import os
@@ -13,6 +13,8 @@ import pandas as pd
 from datetime import datetime
 import json
 import threading
+import queue
+import logging
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -31,6 +33,63 @@ current_job = None
 cancellation_flag = threading.Event()
 processing_thread = None  # Track the processing thread
 cancellation_requested = False  # Simple flag for cancellation
+
+# Real-time log streaming
+log_queue = queue.Queue(maxsize=1000)  # Store last 1000 log messages
+log_clients = []  # List of connected SSE clients
+
+
+class WebLogHandler(logging.Handler):
+    """Custom log handler that streams logs to web clients"""
+    def emit(self, record):
+        try:
+            log_entry = {
+                'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
+                'level': record.levelname,
+                'message': self.format(record),
+                'logger': record.name
+            }
+
+            # Add to main queue for history (remove oldest if full)
+            try:
+                log_queue.put_nowait(log_entry)
+            except queue.Full:
+                # Remove oldest and add new
+                try:
+                    log_queue.get_nowait()
+                    log_queue.put_nowait(log_entry)
+                except:
+                    pass
+
+            # Broadcast to all connected clients immediately
+            dead_clients = []
+            for client_queue in log_clients:
+                try:
+                    client_queue.put_nowait(log_entry)
+                except queue.Full:
+                    dead_clients.append(client_queue)
+                except:
+                    pass
+
+            # Remove dead clients
+            for dead in dead_clients:
+                if dead in log_clients:
+                    log_clients.remove(dead)
+
+        except Exception:
+            pass
+
+
+# Setup web log handler
+web_handler = WebLogHandler()
+web_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(levelname)s - %(name)s - %(message)s')
+web_handler.setFormatter(formatter)
+
+# Add handler to root logger to capture all logs
+logging.getLogger().addHandler(web_handler)
+# Also add to our logger
+logger.addHandler(web_handler)
 
 
 def get_pipeline():
@@ -354,6 +413,46 @@ def force_kill_process():
         'success': True,
         'message': 'Server terminating - browser tab will close',
         'close_tab': True  # Signal to frontend to close tab
+    })
+
+
+@app.route('/api/logs/stream')
+def stream_logs():
+    """Server-Sent Events endpoint for real-time log streaming"""
+    def generate():
+        # Send all existing logs first
+        existing_logs = list(log_queue.queue)
+        for log_entry in existing_logs:
+            yield f"data: {json.dumps(log_entry)}\n\n"
+
+        # Create client queue and register
+        local_queue = queue.Queue(maxsize=100)
+        log_clients.append(local_queue)
+
+        try:
+            while True:
+                try:
+                    # Wait for new log entries
+                    log_entry = local_queue.get(timeout=30)
+                    yield f"data: {json.dumps(log_entry)}\n\n"
+                except queue.Empty:
+                    # Send keepalive ping every 30 seconds
+                    yield f": keepalive\n\n"
+        except GeneratorExit:
+            # Client disconnected
+            if local_queue in log_clients:
+                log_clients.remove(local_queue)
+
+    return Response(generate(), mimetype='text/event-stream')
+
+
+@app.route('/api/logs/history', methods=['GET'])
+def get_log_history():
+    """Get all stored logs"""
+    logs = list(log_queue.queue)
+    return jsonify({
+        'success': True,
+        'logs': logs
     })
 
 
