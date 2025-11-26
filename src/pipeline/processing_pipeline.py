@@ -110,7 +110,7 @@ class ProcessingPipeline:
                 log("Processing cancelled before download step")
                 raise RuntimeError("Processing cancelled by user")
 
-            download_results = self.downloader.download_batch_with_segments(download_tasks)
+            download_results = self.downloader.download_batch_with_segments(download_tasks, is_cancelled=is_cancelled)
             successful_downloads = [r for r in download_results if r.success]
             
             log(f"✓ Downloaded {len(successful_downloads)}/{len(urls)} videos successfully")
@@ -259,6 +259,9 @@ class ProcessingPipeline:
             def process_code_group(code: str, indices: List[int]) -> tuple:
                 """Process a single Code group and return (code, clusters)"""
                 try:
+                    if should_cancel():
+                        raise RuntimeError("Processing cancelled by user")
+
                     if len(indices) < 2:
                         return (code, [])
                     
@@ -351,6 +354,13 @@ class ProcessingPipeline:
                     
                     # Collect results as they complete
                     for future in as_completed(futures):
+                        if should_cancel():
+                            log("Processing cancelled - stopping code group processing")
+                            # Cancel all remaining futures
+                            for f in futures:
+                                f.cancel()
+                            raise RuntimeError("Processing cancelled by user")
+
                         code = futures[future]
                         try:
                             result_code, code_clusters = future.result()

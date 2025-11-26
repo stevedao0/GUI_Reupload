@@ -511,27 +511,33 @@ class YouTubeDownloader:
         
         return results
     
-    def download_batch_with_segments(self, 
+    def download_batch_with_segments(self,
                                      tasks: List[Dict],
-                                     progress_callback: Optional[Callable] = None) -> List[DownloadResult]:
+                                     progress_callback: Optional[Callable] = None,
+                                     is_cancelled: Optional[Callable[[], bool]] = None) -> List[DownloadResult]:
         """
         Download multiple videos with segment support
-        
+
         Args:
             tasks: List of dicts with 'url', 'start_time', 'end_time', 'metadata'
             progress_callback: Progress callback function
-            
+            is_cancelled: Callback returning True if processing should stop
+
         Returns:
             List of DownloadResults
         """
         logger.info(f"Starting batch download of {len(tasks)} videos/segments")
         logger.info(f"Using {self.max_parallel} parallel threads")
         logger.info(f"Retry settings: max_attempts={self.max_retry_attempts}, retries={self.retries}, fragment_retries={self.fragment_retries}")
-        
+
         results = []
         with ThreadPoolExecutor(max_workers=self.max_parallel) as executor:
             futures = {}
             for task in tasks:
+                if is_cancelled and is_cancelled():
+                    logger.warning("Download cancelled before starting all tasks")
+                    break
+
                 future = executor.submit(
                     self.download_video,
                     task['url'],
@@ -541,8 +547,14 @@ class YouTubeDownloader:
                     retry_attempt=0  # Start with first attempt
                 )
                 futures[future] = task
-            
+
             for future in as_completed(futures):
+                if is_cancelled and is_cancelled():
+                    logger.warning("Download cancelled - stopping early")
+                    # Cancel remaining futures
+                    for f in futures:
+                        f.cancel()
+                    break
                 task = futures[future]
                 url = task['url']
                 try:

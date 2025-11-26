@@ -204,7 +204,12 @@ class YouTubeContentDetector {
                 throw new Error(result.error || 'Unknown error');
             }
         } catch (error) {
-            alert('Lỗi khi phân tích: ' + error.message);
+            const errorMsg = error.message || 'Unknown error';
+            if (errorMsg.includes('cancelled') || errorMsg.includes('Cancelled')) {
+                alert('Đã hủy phân tích');
+            } else {
+                alert('Lỗi khi phân tích: ' + errorMsg);
+            }
             console.error(error);
             this.cancelAnalysis();
         }

@@ -295,11 +295,15 @@ def process_videos():
         def log_callback(message):
             logger.info(message)
 
+        def is_cancelled():
+            return cancellation_requested
+
         results = pipeline_instance.process(
             urls=urls,
             metadata=metadata,
             progress_callback=progress_callback,
-            log_callback=log_callback
+            log_callback=log_callback,
+            is_cancelled=is_cancelled
         )
 
         current_results = results
@@ -321,6 +325,12 @@ def process_videos():
 
         return jsonify(response)
 
+    except RuntimeError as e:
+        if "cancelled" in str(e).lower():
+            logger.info("Processing cancelled by user")
+            return jsonify({'error': 'Processing cancelled by user', 'cancelled': True}), 499
+        logger.error(f"Processing error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
     except Exception as e:
         logger.error(f"Processing error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
