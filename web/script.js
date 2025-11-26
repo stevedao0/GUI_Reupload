@@ -1163,6 +1163,8 @@ class DownloadManager {
 
             const data = await response.json();
 
+            console.log('Download response:', data);
+
             if (data.success) {
                 this.displayResults(data);
             } else {
@@ -1198,8 +1200,14 @@ class DownloadManager {
         // Show results section
         this.downloadResults.style.display = 'block';
 
+        console.log('ZIP available:', data.zip_available);
+        console.log('ZIP filename:', data.zip_filename);
+        console.log('ZIP button element:', this.downloadZipBtn);
+        console.log('Info banner element:', this.downloadInfoBanner);
+
         // Show/hide ZIP download button and info banner
         if (data.zip_available && data.zip_filename) {
+            console.log('Showing ZIP download button');
             this.zipFilename = data.zip_filename;
             this.downloadZipBtn.style.display = 'flex';
             this.downloadInfoBanner.style.display = 'flex';
@@ -1211,6 +1219,7 @@ class DownloadManager {
 
             this.serverPath.textContent = `${downloadPath} (${fileCount} files, ZIP: ${zipSize})`;
         } else {
+            console.log('Hiding ZIP download button');
             this.downloadZipBtn.style.display = 'none';
             this.downloadInfoBanner.style.display = 'none';
         }
