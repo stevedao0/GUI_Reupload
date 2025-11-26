@@ -402,11 +402,14 @@ class ProcessingPipeline:
             log(f"Total reuploads: {statistics['total_reuploads']}")
             log(f"Reupload percentage: {statistics['reupload_percentage']:.1f}%")
             
-            # Cleanup
-            if not self.config.get('download.keep_files', False):
-                log("Cleaning up temporary files...")
-                self.downloader.cleanup()
-                log("✓ Cleanup complete")
+            # Cleanup (keep files by default for cache/resume)
+            keep_files = self.config.get('download.keep_files', True)
+            log(f"Cleanup mode: {'Keeping files for cache' if keep_files else 'Deleting all files'}")
+            self.downloader.cleanup(keep_files=keep_files)
+
+            # Log cache statistics
+            if self.config.get('download.enable_cache', True):
+                self.downloader.log_cache_stats()
             
             # Prepare results
             # IMPORTANT: Store ALL download tasks (including failed ones) for export
