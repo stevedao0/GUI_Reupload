@@ -1056,8 +1056,10 @@ def download_videos():
         # Download in batch
         results = downloader.download_batch(valid_urls)
 
-        # Format results
+        # Collect successful downloads
         download_results = []
+        successful_files = []
+
         for result in results:
             download_results.append({
                 'url': result.url,
@@ -1068,18 +1070,76 @@ def download_videos():
                 'error': result.error
             })
 
+            # Collect successful file paths
+            if result.success:
+                if result.video_path and Path(result.video_path).exists():
+                    successful_files.append(str(result.video_path))
+                if result.audio_path and Path(result.audio_path).exists():
+                    successful_files.append(str(result.audio_path))
+
         success_count = sum(1 for r in results if r.success)
+
+        # Create ZIP file if there are successful downloads
+        zip_path = None
+        if successful_files:
+            import zipfile
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            zip_filename = f"youtube_downloads_{timestamp}.zip"
+            zip_path = os.path.join(tempfile.gettempdir(), zip_filename)
+
+            logger.info(f"📦 Creating ZIP file: {zip_filename}")
+
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for file_path in successful_files:
+                    file_name = Path(file_path).name
+                    zipf.write(file_path, file_name)
+                    logger.info(f"  ✓ Added to ZIP: {file_name}")
+
+            logger.info(f"✅ ZIP created successfully: {zip_path}")
 
         return jsonify({
             'success': True,
             'total': len(valid_urls),
             'successful': success_count,
             'failed': len(valid_urls) - success_count,
-            'results': download_results
+            'results': download_results,
+            'zip_available': zip_path is not None,
+            'zip_filename': Path(zip_path).name if zip_path else None
         })
 
     except Exception as e:
         logger.error(f"❌ Download error: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/download/zip/<filename>', methods=['GET'])
+def download_zip(filename):
+    """Download the created ZIP file"""
+    try:
+        zip_path = os.path.join(tempfile.gettempdir(), filename)
+
+        if not os.path.exists(zip_path):
+            return jsonify({
+                'success': False,
+                'error': 'ZIP file not found'
+            }), 404
+
+        logger.info(f"📤 Sending ZIP file: {filename}")
+
+        return send_file(
+            zip_path,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        logger.error(f"❌ ZIP download error: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)

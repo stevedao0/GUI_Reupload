@@ -1088,6 +1088,8 @@ class DownloadManager {
         this.downloadResults = document.getElementById('downloadResults');
         this.downloadSummary = document.getElementById('downloadSummary');
         this.downloadList = document.getElementById('downloadList');
+        this.downloadZipBtn = document.getElementById('downloadZipBtn');
+        this.zipFilename = null;
     }
 
     attachEventListeners() {
@@ -1099,6 +1101,9 @@ class DownloadManager {
         // Download buttons
         this.downloadSingleBtn.addEventListener('click', () => this.downloadSingle());
         this.downloadBatchBtn.addEventListener('click', () => this.downloadBatch());
+
+        // ZIP download button
+        this.downloadZipBtn.addEventListener('click', () => this.downloadZipFile());
     }
 
     switchMode(mode) {
@@ -1191,6 +1196,14 @@ class DownloadManager {
         // Show results section
         this.downloadResults.style.display = 'block';
 
+        // Show/hide ZIP download button
+        if (data.zip_available && data.zip_filename) {
+            this.zipFilename = data.zip_filename;
+            this.downloadZipBtn.style.display = 'flex';
+        } else {
+            this.downloadZipBtn.style.display = 'none';
+        }
+
         // Display summary
         this.downloadSummary.innerHTML = `
             <div class="summary-item">
@@ -1226,6 +1239,24 @@ class DownloadManager {
 
         // Scroll to results
         this.downloadResults.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    downloadZipFile() {
+        if (!this.zipFilename) {
+            alert('Không có file ZIP để tải');
+            return;
+        }
+
+        // Create download link
+        const downloadUrl = `/api/download/zip/${this.zipFilename}`;
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = this.zipFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        console.log('Downloading ZIP file:', this.zipFilename);
     }
 }
 
