@@ -142,16 +142,16 @@ class YouTubeContentDetector {
 
         this.uploadBox.addEventListener('dragover', (e) => {
             e.preventDefault();
-            this.uploadBox.classList.add('drag-over');
+            this.uploadBox.classList.add('dragover');
         });
 
         this.uploadBox.addEventListener('dragleave', () => {
-            this.uploadBox.classList.remove('drag-over');
+            this.uploadBox.classList.remove('dragover');
         });
 
         this.uploadBox.addEventListener('drop', (e) => {
             e.preventDefault();
-            this.uploadBox.classList.remove('drag-over');
+            this.uploadBox.classList.remove('dragover');
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 this.handleFile(files[0]);
@@ -189,7 +189,7 @@ class YouTubeContentDetector {
 
         this.gpuEnabled.addEventListener('change', (e) => {
             this.statGpuStatus.textContent = e.target.checked ? 'Enabled' : 'Disabled';
-            this.statGpuStatus.parentElement.parentElement.querySelector('.stat-icon').style.opacity = e.target.checked ? '1' : '0.5';
+            this.statGpuStatus.style.color = e.target.checked ? 'var(--success)' : 'var(--error)';
         });
 
         // Initialize stat cards with current values
@@ -661,12 +661,12 @@ class HistoryManager {
     }
 
     async open() {
-        this.historyModal.classList.add('show');
+        this.historyModal.classList.add('active');
         await this.loadHistory();
     }
 
     close() {
-        this.historyModal.classList.remove('show');
+        this.historyModal.classList.remove('active');
     }
 
     async loadHistory() {
@@ -884,12 +884,12 @@ class StatisticsManager {
     }
 
     async open() {
-        this.statsModal.classList.add('show');
+        this.statsModal.classList.add('active');
         await this.loadStatistics();
     }
 
     close() {
-        this.statsModal.classList.remove('show');
+        this.statsModal.classList.remove('active');
     }
 
     async loadStatistics() {

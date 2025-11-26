@@ -1081,6 +1081,11 @@ body {
     overflow: hidden;
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border-light);
+    transition: all 0.3s ease;
+}
+
+.console-panel.collapsed .console-body {
+    display: none;
 }
 
 .console-header {
@@ -1097,6 +1102,14 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.console-title svg {
+    width: 16px;
+    height: 16px;
 }
 
 .console-controls {
@@ -1114,6 +1127,14 @@ body {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.console-btn svg {
+    width: 16px;
+    height: 16px;
 }
 
 .console-btn:hover {
