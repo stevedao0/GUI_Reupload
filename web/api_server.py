@@ -271,30 +271,47 @@ def cancel_processing():
 
 @app.route('/api/force-kill', methods=['POST'])
 def force_kill_process():
-    """Emergency endpoint to force kill the entire Python process"""
+    """Emergency endpoint to force kill the entire Python process and close web tab"""
     import signal
+    import sys
 
     logger.warning("="*80)
     logger.warning("EMERGENCY FORCE KILL REQUESTED")
-    logger.warning("Server will terminate immediately")
+    logger.warning("Closing all connections and terminating server")
     logger.warning("="*80)
 
     print("\n" + "="*80)
-    print("⚠️  EMERGENCY FORCE KILL - Terminating server immediately")
+    print("⚠️  EMERGENCY FORCE KILL")
+    print("⚠️  Closing all connections...")
+    print("⚠️  Terminating server...")
+    print("⚠️  Browser tab will close automatically")
     print("="*80 + "\n")
 
-    # Send response before killing
+    # Send response with instruction to close tab
     def kill_after_response():
         import time
-        time.sleep(0.5)  # Give time for response to send
-        os.kill(os.getpid(), signal.SIGTERM)
+        time.sleep(0.3)  # Give time for response to send
+
+        # Force close all connections
+        try:
+            # Shutdown Flask server gracefully first
+            func = request.environ.get('werkzeug.server.shutdown')
+            if func:
+                func()
+        except:
+            pass
+
+        # Then force kill the process
+        time.sleep(0.2)
+        os.kill(os.getpid(), signal.SIGKILL)  # SIGKILL for immediate termination
 
     kill_thread = threading.Thread(target=kill_after_response, daemon=True)
     kill_thread.start()
 
     return jsonify({
         'success': True,
-        'message': 'Server terminating... Please restart manually'
+        'message': 'Server terminating - browser tab will close',
+        'close_tab': True  # Signal to frontend to close tab
     })
 
 

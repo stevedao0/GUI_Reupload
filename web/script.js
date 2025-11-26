@@ -284,13 +284,51 @@ class YouTubeContentDetector {
     }
 
     async forceKillServer() {
-        if (!confirm('⚠️ CẢNH BÁO: Thao tác này sẽ DỪNG HOÀN TOÀN server!\n\nBạn sẽ phải khởi động lại bằng tay.\n\nBạn có chắc chắn muốn tiếp tục?')) {
+        if (!confirm('⚠️ CẢNH BÁO: Thao tác này sẽ:\n\n1. DỪNG HOÀN TOÀN server\n2. ĐÓNG tab trình duyệt này\n3. Ngắt mọi kết nối\n\nBạn sẽ phải khởi động lại bằng tay.\n\nBạn có chắc chắn?')) {
             return;
         }
 
-        this.progressText.textContent = '⚠️ Đang force kill server...';
-        this.forceKillBtn.disabled = true;
-        this.forceKillBtn.textContent = '⚠️ Đang kill...';
+        // Show full screen overlay with message
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            z-index: 999999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        `;
+
+        overlay.innerHTML = `
+            <div style="text-align: center; animation: fadeIn 0.3s ease;">
+                <div style="font-size: 80px; margin-bottom: 30px;">⚠️</div>
+                <h1 style="font-size: 48px; margin-bottom: 20px; font-weight: 700;">FORCE KILL</h1>
+                <p style="font-size: 24px; margin-bottom: 30px; opacity: 0.9;">Đang dừng server và đóng ứng dụng...</p>
+                <div style="width: 300px; height: 6px; background: rgba(255,255,255,0.3); border-radius: 10px; overflow: hidden; margin: 0 auto;">
+                    <div style="width: 100%; height: 100%; background: white; animation: progress 1.5s ease-in-out;"></div>
+                </div>
+                <p style="font-size: 16px; margin-top: 40px; opacity: 0.8;">Tab này sẽ tự động đóng trong 2 giây...</p>
+            </div>
+            <style>
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: scale(0.8); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+                @keyframes progress {
+                    from { transform: translateX(-100%); }
+                    to { transform: translateX(0); }
+                }
+            </style>
+        `;
+
+        document.body.appendChild(overlay);
 
         try {
             const response = await fetch('/api/force-kill', {
@@ -302,25 +340,29 @@ class YouTubeContentDetector {
 
             const result = await response.json();
 
-            if (result.success) {
-                this.showNotification('✓ Server đã dừng. Vui lòng khởi động lại!', 'warning');
-
-                // Alert user after 2 seconds
+            if (result.success && result.close_tab) {
+                // Close tab after 2 seconds
                 setTimeout(() => {
-                    alert('Server đã dừng hoàn toàn.\n\nVui lòng:\n1. Đóng terminal\n2. Chạy lại: python api_server.py');
+                    // Try multiple methods to close the tab
+                    window.close();
+
+                    // If window.close() doesn't work (some browsers block it)
+                    // Redirect to a blank page
+                    setTimeout(() => {
+                        window.location.href = 'about:blank';
+                    }, 500);
                 }, 2000);
             }
         } catch (error) {
-            // Expected error - server killed itself
-            this.showNotification('✓ Server đã dừng. Vui lòng khởi động lại!', 'warning');
-
+            // Expected error - server killed itself before responding
+            // Still close the tab
             setTimeout(() => {
-                alert('Server đã dừng hoàn toàn.\n\nVui lòng:\n1. Đóng terminal (Ctrl+C)\n2. Chạy lại: python api_server.py');
+                window.close();
+
+                setTimeout(() => {
+                    window.location.href = 'about:blank';
+                }, 500);
             }, 2000);
-        } finally {
-            this.isProcessing = false;
-            clearInterval(this.timerInterval);
-            this.forceKillBtn.style.display = 'none';
         }
     }
 
