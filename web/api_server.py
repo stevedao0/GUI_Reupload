@@ -1099,6 +1099,12 @@ def download_videos():
 
             logger.info(f"✅ ZIP created successfully: {zip_path}")
 
+            # Get ZIP file size
+            zip_size = os.path.getsize(zip_path)
+
+        # Get download directory info
+        download_dir = downloader.temp_dir if downloader else None
+
         return jsonify({
             'success': True,
             'total': len(valid_urls),
@@ -1106,7 +1112,11 @@ def download_videos():
             'failed': len(valid_urls) - success_count,
             'results': download_results,
             'zip_available': zip_path is not None,
-            'zip_filename': Path(zip_path).name if zip_path else None
+            'zip_filename': Path(zip_path).name if zip_path else None,
+            'zip_path': str(zip_path) if zip_path else None,
+            'zip_size': zip_size if zip_path else 0,
+            'download_directory': str(download_dir) if download_dir else None,
+            'total_files': len(successful_files)
         })
 
     except Exception as e:

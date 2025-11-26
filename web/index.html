@@ -254,9 +254,24 @@
                                         <polyline points="7 10 12 15 17 10"/>
                                         <line x1="12" y1="15" x2="12" y2="3"/>
                                     </svg>
-                                    Tải ZIP File
+                                    Tải ZIP File về máy
                                 </button>
                             </div>
+
+                            <div class="download-info-banner" id="downloadInfoBanner" style="display: none;">
+                                <div class="banner-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                        <polyline points="22 4 12 14.01 9 11.01"/>
+                                    </svg>
+                                </div>
+                                <div class="banner-content">
+                                    <h4>Files đã được download vào server!</h4>
+                                    <p id="serverPathInfo">Đường dẫn server: <code id="serverPath"></code></p>
+                                    <p class="banner-hint">💡 Nhấn nút "Tải ZIP File về máy" ở trên để tải về máy tính của bạn</p>
+                                </div>
+                            </div>
+
                             <div class="results-summary" id="downloadSummary"></div>
                             <div class="results-list" id="downloadList"></div>
                         </div>

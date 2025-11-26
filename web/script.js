@@ -1089,6 +1089,8 @@ class DownloadManager {
         this.downloadSummary = document.getElementById('downloadSummary');
         this.downloadList = document.getElementById('downloadList');
         this.downloadZipBtn = document.getElementById('downloadZipBtn');
+        this.downloadInfoBanner = document.getElementById('downloadInfoBanner');
+        this.serverPath = document.getElementById('serverPath');
         this.zipFilename = null;
     }
 
@@ -1196,12 +1198,21 @@ class DownloadManager {
         // Show results section
         this.downloadResults.style.display = 'block';
 
-        // Show/hide ZIP download button
+        // Show/hide ZIP download button and info banner
         if (data.zip_available && data.zip_filename) {
             this.zipFilename = data.zip_filename;
             this.downloadZipBtn.style.display = 'flex';
+            this.downloadInfoBanner.style.display = 'flex';
+
+            // Display server path and file info
+            const downloadPath = data.download_directory || data.zip_path || 'Server temp directory';
+            const zipSize = this.formatFileSize(data.zip_size || 0);
+            const fileCount = data.total_files || 0;
+
+            this.serverPath.textContent = `${downloadPath} (${fileCount} files, ZIP: ${zipSize})`;
         } else {
             this.downloadZipBtn.style.display = 'none';
+            this.downloadInfoBanner.style.display = 'none';
         }
 
         // Display summary
@@ -1239,6 +1250,14 @@ class DownloadManager {
 
         // Scroll to results
         this.downloadResults.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
     }
 
     downloadZipFile() {

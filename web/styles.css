@@ -2203,6 +2203,85 @@ body {
     transform: translateY(0);
 }
 
+.download-info-banner {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%);
+    border: 2px solid rgba(16, 185, 129, 0.3);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    margin-bottom: var(--space-xl);
+    display: flex;
+    gap: var(--space-lg);
+    align-items: flex-start;
+    animation: slideIn 0.4s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.banner-icon {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    background: var(--success);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.banner-icon svg {
+    width: 28px;
+    height: 28px;
+    stroke-width: 2.5;
+}
+
+.banner-content {
+    flex: 1;
+}
+
+.banner-content h4 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--success);
+    margin: 0 0 var(--space-sm) 0;
+}
+
+.banner-content p {
+    margin: var(--space-xs) 0;
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+}
+
+.banner-content code {
+    background: rgba(0, 0, 0, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    word-break: break-all;
+}
+
+.banner-hint {
+    background: rgba(255, 255, 255, 0.5);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    margin-top: var(--space-md);
+    font-weight: 600;
+    color: var(--text-primary);
+    border-left: 3px solid var(--success);
+}
+
 .results-summary {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -2321,5 +2400,18 @@ body {
 
     .download-header h2 {
         font-size: 1.5rem;
+    }
+
+    .download-info-banner {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .banner-icon {
+        margin: 0 auto;
+    }
+
+    .banner-content code {
+        font-size: 0.75rem;
     }
 }
