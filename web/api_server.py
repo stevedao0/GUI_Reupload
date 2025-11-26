@@ -29,6 +29,8 @@ pipeline = None
 current_results = None
 current_job = None
 cancellation_flag = threading.Event()
+processing_thread = None  # Track the processing thread
+cancellation_requested = False  # Simple flag for cancellation
 
 
 def get_pipeline():
@@ -216,13 +218,14 @@ def analyze_videos():
 
 @app.route('/api/cancel', methods=['POST'])
 def cancel_processing():
-    global cancellation_flag, current_job
+    global cancellation_flag, current_job, cancellation_requested, processing_thread
 
     try:
+        cancellation_requested = True
         cancellation_flag.set()
 
         print("\n" + "="*80)
-        print("CANCELLATION REQUESTED")
+        print("CANCELLATION REQUESTED - FORCE STOPPING")
         print("="*80 + "\n")
 
         logger.info("="*80)
@@ -232,14 +235,67 @@ def cancel_processing():
         if current_job:
             current_job['status'] = 'cancelled'
 
+        # Force terminate the processing thread if it exists
+        if processing_thread and processing_thread.is_alive():
+            logger.warning("Attempting to forcefully terminate processing thread...")
+            try:
+                import ctypes
+                # Get thread ID and force terminate
+                thread_id = processing_thread.ident
+                if thread_id:
+                    logger.info(f"Sending SystemExit to thread {thread_id}")
+                    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                        ctypes.c_long(thread_id),
+                        ctypes.py_object(SystemExit)
+                    )
+                    if res == 0:
+                        logger.error("Invalid thread ID")
+                    elif res > 1:
+                        # Clean up if affected too many threads
+                        ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 0)
+                        logger.error("Failed to terminate thread cleanly")
+                    else:
+                        logger.info("✓ Thread termination signal sent successfully")
+            except Exception as thread_error:
+                logger.error(f"Could not terminate thread: {thread_error}")
+
         return jsonify({
             'success': True,
-            'message': 'Processing cancellation requested'
+            'message': 'Processing cancellation requested - forcing termination'
         })
 
     except Exception as e:
         logger.error(f"Error during cancellation: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/force-kill', methods=['POST'])
+def force_kill_process():
+    """Emergency endpoint to force kill the entire Python process"""
+    import signal
+
+    logger.warning("="*80)
+    logger.warning("EMERGENCY FORCE KILL REQUESTED")
+    logger.warning("Server will terminate immediately")
+    logger.warning("="*80)
+
+    print("\n" + "="*80)
+    print("⚠️  EMERGENCY FORCE KILL - Terminating server immediately")
+    print("="*80 + "\n")
+
+    # Send response before killing
+    def kill_after_response():
+        import time
+        time.sleep(0.5)  # Give time for response to send
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    kill_thread = threading.Thread(target=kill_after_response, daemon=True)
+    kill_thread.start()
+
+    return jsonify({
+        'success': True,
+        'message': 'Server terminating... Please restart manually'
+    })
 
 
 @app.route('/api/job/status', methods=['GET'])

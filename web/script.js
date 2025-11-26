@@ -36,6 +36,7 @@ class YouTubeContentDetector {
         this.currentStep = document.getElementById('currentStep');
         this.elapsedTime = document.getElementById('elapsedTime');
         this.cancelBtn = document.getElementById('cancelBtn');
+        this.forceKillBtn = document.getElementById('forceKillBtn');
 
         this.resultsContainer = document.getElementById('resultsContainer');
         this.totalVideos = document.getElementById('totalVideos');
@@ -78,6 +79,7 @@ class YouTubeContentDetector {
 
         this.analyzeBtn.addEventListener('click', () => this.startAnalysis());
         this.cancelBtn.addEventListener('click', () => this.cancelAnalysis());
+        this.forceKillBtn.addEventListener('click', () => this.forceKillServer());
         this.exportBtn.addEventListener('click', () => this.exportResults());
 
         this.tabBtns.forEach(btn => {
@@ -265,13 +267,23 @@ class YouTubeContentDetector {
             if (result.success) {
                 console.log('Cancellation successful');
                 this.showNotification('Đã hủy phân tích', 'warning');
+
+                // Show force kill button after 3 seconds if still processing
+                setTimeout(() => {
+                    if (this.isProcessing) {
+                        this.forceKillBtn.style.display = 'block';
+                        this.showNotification('⚠️ Nếu phần mềm không dừng, click "Force Kill Server"', 'warning');
+                    }
+                }, 3000);
             } else {
                 console.error('Cancellation failed:', result.error);
                 this.showNotification('Lỗi khi hủy: ' + result.error, 'error');
+                this.forceKillBtn.style.display = 'block';
             }
         } catch (error) {
             console.error('Error canceling:', error);
             this.showNotification('Không thể hủy: ' + error.message, 'error');
+            this.forceKillBtn.style.display = 'block';
         } finally {
             this.isProcessing = false;
             clearInterval(this.timerInterval);
@@ -283,6 +295,47 @@ class YouTubeContentDetector {
             this.elapsedTime.textContent = '0s';
             this.cancelBtn.disabled = false;
             this.cancelBtn.textContent = 'Hủy';
+        }
+    }
+
+    async forceKillServer() {
+        if (!confirm('⚠️ CẢNH BÁO: Thao tác này sẽ DỪNG HOÀN TOÀN server!\n\nBạn sẽ phải khởi động lại bằng tay.\n\nBạn có chắc chắn muốn tiếp tục?')) {
+            return;
+        }
+
+        this.progressText.textContent = '⚠️ Đang force kill server...';
+        this.forceKillBtn.disabled = true;
+        this.forceKillBtn.textContent = '⚠️ Đang kill...';
+
+        try {
+            const response = await fetch('/api/force-kill', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showNotification('✓ Server đã dừng. Vui lòng khởi động lại!', 'warning');
+
+                // Alert user after 2 seconds
+                setTimeout(() => {
+                    alert('Server đã dừng hoàn toàn.\n\nVui lòng:\n1. Đóng terminal\n2. Chạy lại: python api_server.py');
+                }, 2000);
+            }
+        } catch (error) {
+            // Expected error - server killed itself
+            this.showNotification('✓ Server đã dừng. Vui lòng khởi động lại!', 'warning');
+
+            setTimeout(() => {
+                alert('Server đã dừng hoàn toàn.\n\nVui lòng:\n1. Đóng terminal (Ctrl+C)\n2. Chạy lại: python api_server.py');
+            }, 2000);
+        } finally {
+            this.isProcessing = false;
+            clearInterval(this.timerInterval);
+            this.forceKillBtn.style.display = 'none';
         }
     }
 
