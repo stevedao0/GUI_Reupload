@@ -924,42 +924,57 @@ def search_history():
 @app.route('/api/system-info', methods=['GET'])
 def get_system_info():
     """Get system hardware information"""
+    import platform
+    import os
+
     try:
-        import platform
-        import psutil
+        # Try to import psutil for detailed info
+        try:
+            import psutil
+            has_psutil = True
+        except ImportError:
+            has_psutil = False
+            logger.warning("psutil not available, using basic system info")
 
         # CPU Info
-        cpu_count = psutil.cpu_count(logical=False)
-        cpu_count_logical = psutil.cpu_count(logical=True)
-        cpu_freq = psutil.cpu_freq()
-        cpu_percent = psutil.cpu_percent(interval=0.1)
+        if has_psutil:
+            cpu_count = psutil.cpu_count(logical=False)
+            cpu_count_logical = psutil.cpu_count(logical=True)
+            cpu_percent = psutil.cpu_percent(interval=0.1)
 
-        cpu_info = f"{cpu_count}C/{cpu_count_logical}T @ {cpu_freq.current/1000:.1f}GHz ({cpu_percent}%)"
+            try:
+                cpu_freq = psutil.cpu_freq()
+                cpu_info = f"{cpu_count}C/{cpu_count_logical}T @ {cpu_freq.current/1000:.1f}GHz ({cpu_percent}%)"
+            except:
+                cpu_info = f"{cpu_count}C/{cpu_count_logical}T ({cpu_percent}%)"
+        else:
+            cpu_count = os.cpu_count() or 'N/A'
+            cpu_info = f"{cpu_count} cores"
 
         # RAM Info
-        ram = psutil.virtual_memory()
-        ram_total_gb = ram.total / (1024**3)
-        ram_used_gb = ram.used / (1024**3)
-        ram_percent = ram.percent
-
-        ram_info = f"{ram_used_gb:.1f}/{ram_total_gb:.1f}GB ({ram_percent}%)"
+        if has_psutil:
+            ram = psutil.virtual_memory()
+            ram_total_gb = ram.total / (1024**3)
+            ram_used_gb = ram.used / (1024**3)
+            ram_percent = ram.percent
+            ram_info = f"{ram_used_gb:.1f}/{ram_total_gb:.1f}GB ({ram_percent}%)"
+        else:
+            ram_info = "Install psutil for details"
 
         # GPU Info
-        gpu_info = "N/A"
+        gpu_info = "CPU Only"
         try:
             import torch
             if torch.cuda.is_available():
                 gpu_name = torch.cuda.get_device_name(0)
                 gpu_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3)
                 gpu_info = f"{gpu_name} ({gpu_memory:.1f}GB)"
-            else:
-                gpu_info = "CPU Only"
         except:
-            gpu_info = "CPU Only"
+            pass
 
         # Python Info
         python_version = platform.python_version()
-        python_info = f"{python_version}"
+        python_info = f"Python {python_version}"
 
         # OS Info
         os_info = f"{platform.system()} {platform.release()}"
@@ -976,17 +991,34 @@ def get_system_info():
         })
     except Exception as e:
         logger.error(f"Error fetching system info: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'system': {
-                'cpu': 'Error',
-                'ram': 'Error',
-                'gpu': 'Error',
-                'python': 'Error',
-                'os': 'Error'
-            }
-        }), 500
+        import traceback
+        logger.error(traceback.format_exc())
+
+        # Return basic fallback info
+        try:
+            import platform
+            return jsonify({
+                'success': True,
+                'system': {
+                    'cpu': f"{os.cpu_count() or 'N/A'} cores",
+                    'ram': 'N/A',
+                    'gpu': 'N/A',
+                    'python': f"Python {platform.python_version()}",
+                    'os': f"{platform.system()} {platform.release()}"
+                }
+            })
+        except:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'system': {
+                    'cpu': 'N/A',
+                    'ram': 'N/A',
+                    'gpu': 'N/A',
+                    'python': 'N/A',
+                    'os': 'N/A'
+                }
+            }), 500
 
 
 if __name__ == '__main__':

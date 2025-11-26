@@ -1025,28 +1025,47 @@ let historyManager;
 let statisticsManager;
 
 async function loadSystemInfo() {
-    try {
-        const response = await fetch('/api/system-info');
-        const data = await response.json();
+    const maxRetries = 3;
+    let retryCount = 0;
 
-        if (data.success && data.system) {
-            document.getElementById('cpuInfo').textContent = data.system.cpu;
-            document.getElementById('ramInfo').textContent = data.system.ram;
-            document.getElementById('gpuInfo').textContent = data.system.gpu;
-            document.getElementById('pythonInfo').textContent = data.system.python;
-        } else {
-            document.getElementById('cpuInfo').textContent = 'Error';
-            document.getElementById('ramInfo').textContent = 'Error';
-            document.getElementById('gpuInfo').textContent = 'Error';
-            document.getElementById('pythonInfo').textContent = 'Error';
+    const tryLoad = async () => {
+        try {
+            console.log('Loading system info...');
+            const response = await fetch('/api/system-info');
+            console.log('Response status:', response.status);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('System info data:', data);
+
+            if (data.success && data.system) {
+                document.getElementById('cpuInfo').textContent = data.system.cpu;
+                document.getElementById('ramInfo').textContent = data.system.ram;
+                document.getElementById('gpuInfo').textContent = data.system.gpu;
+                document.getElementById('pythonInfo').textContent = data.system.python;
+                console.log('System info loaded successfully');
+            } else {
+                throw new Error(data.error || 'Invalid response');
+            }
+        } catch (error) {
+            console.error('Failed to load system info (attempt ' + (retryCount + 1) + '):', error);
+
+            if (retryCount < maxRetries - 1) {
+                retryCount++;
+                setTimeout(tryLoad, 1000);
+            } else {
+                document.getElementById('cpuInfo').textContent = 'Server offline';
+                document.getElementById('ramInfo').textContent = 'Server offline';
+                document.getElementById('gpuInfo').textContent = 'Server offline';
+                document.getElementById('pythonInfo').textContent = 'Server offline';
+            }
         }
-    } catch (error) {
-        console.error('Failed to load system info:', error);
-        document.getElementById('cpuInfo').textContent = 'N/A';
-        document.getElementById('ramInfo').textContent = 'N/A';
-        document.getElementById('gpuInfo').textContent = 'N/A';
-        document.getElementById('pythonInfo').textContent = 'N/A';
-    }
+    };
+
+    tryLoad();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
