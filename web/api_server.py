@@ -100,6 +100,55 @@ def get_pipeline():
     return pipeline
 
 
+def find_url_column(df):
+    """
+    Find URL/Link column in DataFrame
+    Supports multiple column name variations, case-insensitive, with whitespace handling
+
+    Returns: (url_column_name, error_message)
+    """
+    # Clean column names first
+    df.columns = df.columns.str.strip()
+
+    url_column = None
+    possible_url_columns = [
+        'Link', 'link', 'LINK',
+        'Link YouTube', 'link youtube', 'LINK YOUTUBE',
+        'URL', 'url',
+        'Video URL', 'video url', 'VIDEO URL',
+        'video_url', 'Video_URL'
+    ]
+
+    # Strategy 1: Exact match
+    for col in possible_url_columns:
+        if col in df.columns:
+            url_column = col
+            logger.info(f"Found URL column: '{col}' (exact match)")
+            return url_column, None
+
+    # Strategy 2: Case-insensitive match
+    col_lower_map = {col.lower(): col for col in df.columns}
+    for possible_col in possible_url_columns:
+        if possible_col.lower() in col_lower_map:
+            url_column = col_lower_map[possible_col.lower()]
+            logger.info(f"Found URL column: '{url_column}' (case-insensitive)")
+            return url_column, None
+
+    # Strategy 3: Fuzzy match (contains 'link' or 'url')
+    for col in df.columns:
+        col_lower = col.lower()
+        if 'link' in col_lower or 'url' in col_lower:
+            url_column = col
+            logger.info(f"Found URL column: '{col}' (fuzzy match)")
+            return url_column, None
+
+    # Not found
+    available_cols = ', '.join(df.columns.tolist())
+    error_msg = f'Không tìm thấy cột URL/Link. Các cột có sẵn: {available_cols}'
+    logger.error(error_msg)
+    return None, error_msg
+
+
 @app.route('/')
 def index():
     return send_file('index.html')
@@ -144,26 +193,35 @@ def analyze_videos():
         logger.info(f"File columns: {df.columns.tolist()}")
         logger.info(f"Total rows: {len(df)}")
 
-        url_column = None
-        possible_url_columns = ['Link', 'link', 'Link YouTube', 'link youtube', 'URL', 'url', 'Video URL', 'video_url']
-        for col in possible_url_columns:
-            if col in df.columns:
-                url_column = col
-                print(f"✓ Found URL column: '{col}'")
-                logger.info(f"Found URL column: {col}")
-                break
-
+        # Find URL column using helper function
+        url_column, error_msg = find_url_column(df)
         if url_column is None:
-            available_cols = ', '.join(df.columns.tolist())
-            error_msg = f'Không tìm thấy cột URL. Các cột có sẵn: {available_cols}'
             print(f"✗ ERROR: {error_msg}\n")
             return jsonify({'success': False, 'error': error_msg}), 400
 
-        urls = df[url_column].dropna().tolist()
+        print(f"✓ Found URL column: '{url_column}'")
+
+        # Get URLs and filter valid ones
+        urls_raw = df[url_column].dropna().tolist()
+        urls = []
+        for url in urls_raw:
+            url_str = str(url).strip()
+            # Basic validation: must contain youtube.com or youtu.be
+            if url_str and ('youtube.com' in url_str.lower() or 'youtu.be' in url_str.lower()):
+                urls.append(url_str)
+            elif url_str:
+                logger.warning(f"Skipping invalid URL: {url_str[:50]}...")
+
+        if not urls:
+            error_msg = f'Không tìm thấy URL YouTube hợp lệ trong cột "{url_column}"'
+            print(f"✗ ERROR: {error_msg}\n")
+            logger.error(error_msg)
+            return jsonify({'success': False, 'error': error_msg}), 400
+
         metadata = df.to_dict('records')
 
-        print(f"✓ Found {len(urls)} video URLs\n")
-        logger.info(f"Found {len(urls)} video URLs")
+        print(f"✓ Found {len(urls)} valid YouTube URLs\n")
+        logger.info(f"Found {len(urls)} valid YouTube URLs")
 
         audio_threshold = float(request.form.get('audio_threshold', 0.65))
         video_threshold = float(request.form.get('video_threshold', 0.75))
@@ -486,10 +544,25 @@ def process_videos():
 
         df = pd.read_excel(file_path)
 
-        urls = df['Link YouTube'].dropna().tolist()
+        # Find URL column using helper function
+        url_column, error_msg = find_url_column(df)
+        if url_column is None:
+            return jsonify({'error': error_msg}), 400
+
+        # Get URLs and filter valid ones
+        urls_raw = df[url_column].dropna().tolist()
+        urls = []
+        for url in urls_raw:
+            url_str = str(url).strip()
+            if url_str and ('youtube.com' in url_str.lower() or 'youtu.be' in url_str.lower()):
+                urls.append(url_str)
+
+        if not urls:
+            return jsonify({'error': f'Không tìm thấy URL YouTube hợp lệ trong cột "{url_column}"'}), 400
+
         metadata = df.to_dict('records')
 
-        logger.info(f"Starting processing: {len(urls)} videos")
+        logger.info(f"Starting processing: {len(urls)} valid YouTube videos")
 
         current_config = config.copy()
         if 'audioThreshold' in config_overrides:

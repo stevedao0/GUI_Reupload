@@ -81,15 +81,39 @@ Truy cập: **http://localhost:5000**
 
 ### 1. Upload file Excel
 
+#### **Format file Excel yêu cầu:**
+
+File Excel phải có **ít nhất một cột chứa YouTube URL** với tên:
+- ✅ `Link` (khuyến nghị)
+- ✅ `URL`
+- ✅ `Link YouTube`
+- ✅ `Video URL`
+- ✅ hoặc bất kỳ cột nào có chứa "link" hoặc "url" trong tên
+
+**Ví dụ cấu trúc Excel hợp lệ:**
+
+| STT | Link | Code | Thời gian | Type |
+|-----|------|------|-----------|------|
+| 1 | https://www.youtube.com/watch?v=abc123 | 6561680 | 23:26 - 24:44 | Video |
+| 2 | https://www.youtube.com/watch?v=xyz789 | 6561680 | 1:03:51 - 1:05:09 | Video |
+
+**Các cột khác (Code, Type, Thời gian, STT) là tùy chọn** - hệ thống chỉ cần cột URL.
+
+**Lưu ý quan trọng:**
+- ✅ URLs phải là YouTube links hợp lệ (chứa `youtube.com` hoặc `youtu.be`)
+- ✅ Tên cột không phân biệt hoa thường (`Link`, `link`, `LINK` đều OK)
+- ✅ Khoảng trắng trong tên cột sẽ được tự động loại bỏ
+- ❌ Các URL không phải YouTube sẽ bị bỏ qua
+
 ```
 Bước 1: Chuẩn bị file Excel
-- Columns cần có: Link YouTube, Code, Type, Thời gian
-- Format giống như file mẫu hiện tại
+- Đảm bảo có cột Link/URL chứa YouTube URLs
+- Format: .xlsx hoặc .xls
 
 Bước 2: Upload
 - Kéo thả vào vùng upload
 - Hoặc click để chọn file
-- Xem preview: 50 videos, 10 codes
+- Xem preview: số video và thông tin file
 ```
 
 ### 2. Cấu hình xử lý
