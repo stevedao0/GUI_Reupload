@@ -11,7 +11,12 @@ download:
   max_retry_attempts: 3  # Number of wrapper-level retries for network errors (with exponential backoff)
   retry_delay_base: 2    # Base delay in seconds for exponential backoff (2s, 4s, 8s, ...)
   temp_dir: "temp_downloads"
-  keep_files: true       # Keep downloaded files after processing (for testing/debugging)
+
+  # ⚠️ IMPORTANT: File Management
+  keep_files: true       # Keep downloaded files after processing for cache/resume
+                         # Set to FALSE to delete all files after run (NOT RECOMMENDED - will lose cache!)
+                         # Files are safely stored in temp_downloads/ folder
+                         # Keeping files enables MUCH FASTER re-runs (cache hit = instant, no re-download)
 
   # Cache/Resume Settings
   enable_cache: true     # Enable file cache - reuse already downloaded files

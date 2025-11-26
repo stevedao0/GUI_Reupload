@@ -809,17 +809,60 @@ class YouTubeDownloader:
         """
         Clean up downloaded files
 
+        SAFETY FIRST: Files are kept by default to enable cache/resume functionality
+        Only deletes files when explicitly requested (keep_files=False)
+
         Args:
             keep_files: If True, keep all downloaded files (default: True for resume capability)
                        If False, delete all files in temp directory
+
+        WARNING: Setting keep_files=False will permanently delete ALL cached files!
         """
-        if not keep_files and self.temp_dir.exists():
-            logger.warning("⚠️  Cleaning up ALL downloaded files...")
-            logger.warning("   This will delete all cached videos and audio files!")
-            import shutil
-            shutil.rmtree(self.temp_dir)
-            logger.info("✓ Cleanup complete - all files deleted")
+        if not keep_files:
+            if self.temp_dir.exists():
+                # Count files before deletion (for logging)
+                try:
+                    video_count = len(list(self.video_dir.glob('*.mp4'))) if self.video_dir.exists() else 0
+                    audio_count = len(list(self.audio_dir.glob('*.mp3'))) if self.audio_dir.exists() else 0
+                    total_files = video_count + audio_count
+
+                    logger.warning("=" * 60)
+                    logger.warning("⚠️  WARNING: DELETING ALL DOWNLOADED FILES!")
+                    logger.warning(f"   📁 Location: {self.temp_dir.absolute()}")
+                    logger.warning(f"   📹 Videos: {video_count} files")
+                    logger.warning(f"   🎵 Audio: {audio_count} files")
+                    logger.warning(f"   📊 Total: {total_files} files")
+                    logger.warning("   This action CANNOT be undone!")
+                    logger.warning("=" * 60)
+
+                    # Delete the entire temp directory
+                    import shutil
+                    shutil.rmtree(self.temp_dir)
+
+                    logger.info(f"✓ Cleanup complete - {total_files} files deleted")
+                except Exception as e:
+                    logger.error(f"❌ Failed to cleanup files: {e}")
+            else:
+                logger.info("⚠️  Cleanup requested but temp directory doesn't exist")
         else:
-            logger.info("✓ Keeping downloaded files for reuse (cache enabled)")
-            logger.info(f"   📁 Files location: {self.temp_dir.absolute()}")
+            # Keep files - just log the status
+            if self.temp_dir.exists():
+                try:
+                    video_count = len(list(self.video_dir.glob('*.mp4'))) if self.video_dir.exists() else 0
+                    audio_count = len(list(self.audio_dir.glob('*.mp3'))) if self.audio_dir.exists() else 0
+                    total_files = video_count + audio_count
+
+                    logger.info("=" * 60)
+                    logger.info("✅ KEEPING downloaded files for cache/resume")
+                    logger.info(f"   📁 Location: {self.temp_dir.absolute()}")
+                    logger.info(f"   📹 Videos: {video_count} files")
+                    logger.info(f"   🎵 Audio: {audio_count} files")
+                    logger.info(f"   📊 Total: {total_files} files cached")
+                    logger.info("   💡 Tip: These files will be reused on next run (faster!)")
+                    logger.info("=" * 60)
+                except Exception as e:
+                    logger.warning(f"⚠️  Could not count cached files: {e}")
+                    logger.info(f"✅ Keeping downloaded files at: {self.temp_dir.absolute()}")
+            else:
+                logger.info("✅ Cache enabled - files will be saved to: {self.temp_dir.absolute()}")
 

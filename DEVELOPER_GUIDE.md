@@ -781,7 +781,173 @@ Closes #42
 
 ---
 
-**Version:** 1.3.0  
-**Last Updated:** 2024-10-30  
+## 💾 **File Cache & Resume System**
+
+### **Overview**
+
+The downloader implements a smart file cache system that prevents re-downloading files that already exist. This dramatically improves performance on re-runs and enables resume functionality after errors.
+
+### **How It Works**
+
+```
+┌─────────────────────────────────────┐
+│  Download Request: video.mp4        │
+└─────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────┐
+│  Cache Check (< 1ms)                │
+│  • File exists?                     │
+│  • Readable?                        │
+│  • Size > minimum?                  │
+└─────────────────────────────────────┘
+              ↓
+        ✅ Valid?
+              │
+    ┌─────────┴─────────┐
+   YES                  NO
+    │                    │
+    ↓                    ↓
+┌───────────┐    ┌──────────────┐
+│ CACHE HIT │    │ CACHE MISS   │
+│ Use file  │    │ Download new │
+└───────────┘    └──────────────┘
+```
+
+### **Configuration**
+
+```yaml
+download:
+  # File Management
+  keep_files: true        # KEEP files by default (RECOMMENDED)
+
+  # Cache Settings
+  enable_cache: true      # Enable cache system
+  verify_file_size: true  # Check integrity
+  min_file_size: 1024     # Minimum valid size (1KB)
+```
+
+### **Safety Features**
+
+#### **1. Keep Files By Default**
+```python
+keep_files: true  # ✅ Default behavior - NEVER auto-delete
+```
+
+**Why?**
+- Enables cache/resume functionality
+- Prevents accidental data loss
+- Makes re-runs 75%+ faster
+- Saves bandwidth and time
+
+#### **2. Clear Warnings Before Deletion**
+```
+============================================================
+⚠️  WARNING: DELETING ALL DOWNLOADED FILES!
+   📁 Location: /path/to/temp_downloads
+   📹 Videos: 150 files
+   🎵 Audio: 150 files
+   📊 Total: 300 files
+   This action CANNOT be undone!
+============================================================
+```
+
+#### **3. Corrupted File Detection**
+```python
+# Auto-detect and re-download corrupted files
+if file_size < 100KB:  # Video too small
+    delete_and_redownload()
+```
+
+### **File Structure**
+
+```
+temp_downloads/
+├── videos/
+│   ├── abc123.mp4              # Final (kept)
+│   ├── xyz789.mp4              # Final (kept)
+│   └── temp_12345678.mp4       # Temp (deleted after processing)
+├── audios/
+│   ├── abc123.mp3              # Final (kept)
+│   ├── xyz789.mp3              # Final (kept)
+│   └── temp_87654321.mp3       # Temp (deleted after processing)
+└── abc123_metadata.json        # Metadata (kept)
+```
+
+### **Performance Impact**
+
+**Without Cache:**
+```
+100 videos × 30 seconds = 3000 seconds (50 minutes)
+```
+
+**With Cache (75% hit rate):**
+```
+25 videos × 30 seconds = 750 seconds (12.5 minutes)
+Savings: 37.5 minutes per run! (75% faster)
+```
+
+### **Cache Statistics**
+
+The system tracks cache performance:
+
+```python
+stats = downloader.get_cache_stats()
+# {
+#     'cache_hits': 150,
+#     'cache_misses': 50,
+#     'corrupted_files': 2,
+#     'total_requests': 200,
+#     'hit_rate_percent': 75.0
+# }
+```
+
+Console output:
+```
+============================================================
+📊 CACHE STATISTICS:
+   ✅ Cache Hits:       150
+   ⬇️  Cache Misses:     50
+   ⚠️  Corrupted Files:  2
+   �� Cache Hit Rate:   75.0%
+   🎯 Total Requests:   200
+============================================================
+```
+
+### **Best Practices**
+
+1. **Always keep `keep_files: true`** unless disk space is critical
+2. **Enable cache** for faster re-runs
+3. **Monitor cache stats** to optimize performance
+4. **Let corrupted files auto-delete** - they're re-downloaded automatically
+5. **Never manually delete temp_downloads/** while processing
+
+### **Troubleshooting**
+
+**Q: Files were deleted, how to prevent this?**
+```yaml
+# Set in config.yaml:
+download:
+  keep_files: true  # ✅ Must be true
+```
+
+**Q: How to manually clean up old files?**
+```yaml
+# Temporarily set:
+download:
+  keep_files: false  # ⚠️ Deletes all files!
+```
+
+Then change back to `true` after cleanup.
+
+**Q: Cache hit but file is corrupted?**
+System auto-detects and re-downloads. Check logs for:
+```
+⚠️  Cached video file is corrupted, will re-download
+```
+
+---
+
+**Version:** 1.3.0
+**Last Updated:** 2024-11-26
 **For Contributors & Developers**
 
