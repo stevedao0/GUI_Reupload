@@ -356,7 +356,7 @@ def export_results(job_id):
 
 
 @app.route('/api/status/<job_id>', methods=['GET'])
-def get_job_status(job_id):
+def get_job_status_by_id(job_id):
     global current_results
 
     if current_results is None:
