@@ -250,9 +250,13 @@ class YouTubeContentDetector {
         }
 
         console.log('Cancelling analysis...');
-        this.progressText.textContent = 'Đang hủy...';
+        this.progressText.textContent = 'Đang hủy... (đợi 3 giây)';
         this.cancelBtn.disabled = true;
         this.cancelBtn.textContent = 'Đang hủy...';
+
+        // Show force kill button immediately
+        this.forceKillBtn.style.display = 'block';
+        this.showNotification('⚠️ Nếu không dừng, click "Force Kill Server"', 'warning');
 
         try {
             const response = await fetch('/api/cancel', {
@@ -265,37 +269,18 @@ class YouTubeContentDetector {
             const result = await response.json();
 
             if (result.success) {
-                console.log('Cancellation successful');
-                this.showNotification('Đã hủy phân tích', 'warning');
-
-                // Show force kill button after 3 seconds if still processing
-                setTimeout(() => {
-                    if (this.isProcessing) {
-                        this.forceKillBtn.style.display = 'block';
-                        this.showNotification('⚠️ Nếu phần mềm không dừng, click "Force Kill Server"', 'warning');
-                    }
-                }, 3000);
+                console.log('Cancellation request sent');
+                this.progressText.textContent = 'Đã gửi yêu cầu hủy. Nếu vẫn chạy, click Force Kill.';
             } else {
                 console.error('Cancellation failed:', result.error);
                 this.showNotification('Lỗi khi hủy: ' + result.error, 'error');
-                this.forceKillBtn.style.display = 'block';
             }
         } catch (error) {
             console.error('Error canceling:', error);
             this.showNotification('Không thể hủy: ' + error.message, 'error');
-            this.forceKillBtn.style.display = 'block';
-        } finally {
-            this.isProcessing = false;
-            clearInterval(this.timerInterval);
-            this.jobId = null;
-
-            this.switchTab('upload');
-            this.progressBar.style.width = '0%';
-            this.currentStep.textContent = '0';
-            this.elapsedTime.textContent = '0s';
-            this.cancelBtn.disabled = false;
-            this.cancelBtn.textContent = 'Hủy';
         }
+
+        // Don't reset immediately - keep showing force kill option
     }
 
     async forceKillServer() {
