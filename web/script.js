@@ -48,6 +48,11 @@ class YouTubeContentDetector {
         this.clusterCount = document.getElementById('clusterCount');
         this.exportBtn = document.getElementById('exportBtn');
 
+        this.statAudioThreshold = document.getElementById('statAudioThreshold');
+        this.statVideoThreshold = document.getElementById('statVideoThreshold');
+        this.statCombinedThreshold = document.getElementById('statCombinedThreshold');
+        this.statGpuStatus = document.getElementById('statGpuStatus');
+
         this.tabBtns = document.querySelectorAll('.tab-btn');
         this.tabPanes = document.querySelectorAll('.tab-pane');
 
@@ -97,16 +102,33 @@ class YouTubeContentDetector {
 
     initSliders() {
         this.audioThreshold.addEventListener('input', (e) => {
-            this.audioValue.textContent = `${Math.round(e.target.value * 100)}%`;
+            const value = Math.round(e.target.value * 100);
+            this.audioValue.textContent = `${value}%`;
+            this.statAudioThreshold.textContent = `${value}%`;
         });
 
         this.videoThreshold.addEventListener('input', (e) => {
-            this.videoValue.textContent = `${Math.round(e.target.value * 100)}%`;
+            const value = Math.round(e.target.value * 100);
+            this.videoValue.textContent = `${value}%`;
+            this.statVideoThreshold.textContent = `${value}%`;
         });
 
         this.combinedThreshold.addEventListener('input', (e) => {
-            this.combinedValue.textContent = `${Math.round(e.target.value * 100)}%`;
+            const value = Math.round(e.target.value * 100);
+            this.combinedValue.textContent = `${value}%`;
+            this.statCombinedThreshold.textContent = `${value}%`;
         });
+
+        this.gpuEnabled.addEventListener('change', (e) => {
+            this.statGpuStatus.textContent = e.target.checked ? 'Enabled' : 'Disabled';
+            this.statGpuStatus.parentElement.parentElement.querySelector('.stat-icon').style.opacity = e.target.checked ? '1' : '0.5';
+        });
+
+        // Initialize stat cards with current values
+        this.statAudioThreshold.textContent = `${Math.round(this.audioThreshold.value * 100)}%`;
+        this.statVideoThreshold.textContent = `${Math.round(this.videoThreshold.value * 100)}%`;
+        this.statCombinedThreshold.textContent = `${Math.round(this.combinedThreshold.value * 100)}%`;
+        this.statGpuStatus.textContent = this.gpuEnabled.checked ? 'Enabled' : 'Disabled';
     }
 
     switchTab(tabName) {
