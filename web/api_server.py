@@ -1021,6 +1021,71 @@ def get_system_info():
             }), 500
 
 
+@app.route('/api/download', methods=['POST'])
+def download_videos():
+    """Download videos from URLs"""
+    try:
+        data = request.json
+        urls = data.get('urls', [])
+
+        if not urls:
+            return jsonify({
+                'success': False,
+                'error': 'No URLs provided'
+            }), 400
+
+        # Validate URLs
+        valid_urls = []
+        for url in urls:
+            url = url.strip()
+            if url and ('youtube.com' in url or 'youtu.be' in url):
+                valid_urls.append(url)
+
+        if not valid_urls:
+            return jsonify({
+                'success': False,
+                'error': 'No valid YouTube URLs found'
+            }), 400
+
+        logger.info(f"📥 Downloading {len(valid_urls)} video(s)...")
+
+        # Import downloader
+        from src.downloader import YouTubeDownloader
+        downloader = YouTubeDownloader(config)
+
+        # Download in batch
+        results = downloader.download_batch(valid_urls)
+
+        # Format results
+        download_results = []
+        for result in results:
+            download_results.append({
+                'url': result.url,
+                'success': result.success,
+                'video_path': str(result.video_path) if result.video_path else None,
+                'audio_path': str(result.audio_path) if result.audio_path else None,
+                'metadata': result.metadata,
+                'error': result.error
+            })
+
+        success_count = sum(1 for r in results if r.success)
+
+        return jsonify({
+            'success': True,
+            'total': len(valid_urls),
+            'successful': success_count,
+            'failed': len(valid_urls) - success_count,
+            'results': download_results
+        })
+
+    except Exception as e:
+        logger.error(f"❌ Download error: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     logger.info("=" * 80)
     logger.info("YouTube Reupload Detector - Web Server Starting...")

@@ -1068,10 +1068,172 @@ async function loadSystemInfo() {
     tryLoad();
 }
 
+// ============================================
+// Download Tab Functionality
+// ============================================
+
+class DownloadManager {
+    constructor() {
+        this.initializeElements();
+        this.attachEventListeners();
+    }
+
+    initializeElements() {
+        this.singleUrlMode = document.getElementById('singleUrlMode');
+        this.batchUrlMode = document.getElementById('batchUrlMode');
+        this.singleUrlInput = document.getElementById('singleUrl');
+        this.batchUrlsInput = document.getElementById('batchUrls');
+        this.downloadSingleBtn = document.getElementById('downloadSingleBtn');
+        this.downloadBatchBtn = document.getElementById('downloadBatchBtn');
+        this.downloadResults = document.getElementById('downloadResults');
+        this.downloadSummary = document.getElementById('downloadSummary');
+        this.downloadList = document.getElementById('downloadList');
+    }
+
+    attachEventListeners() {
+        // Mode switching
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => this.switchMode(e.target.closest('.mode-btn').dataset.mode));
+        });
+
+        // Download buttons
+        this.downloadSingleBtn.addEventListener('click', () => this.downloadSingle());
+        this.downloadBatchBtn.addEventListener('click', () => this.downloadBatch());
+    }
+
+    switchMode(mode) {
+        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+
+        if (mode === 'single') {
+            this.singleUrlMode.style.display = 'block';
+            this.batchUrlMode.style.display = 'none';
+        } else {
+            this.singleUrlMode.style.display = 'none';
+            this.batchUrlMode.style.display = 'block';
+        }
+    }
+
+    async downloadSingle() {
+        const url = this.singleUrlInput.value.trim();
+        if (!url) {
+            alert('Vui lòng nhập YouTube URL');
+            return;
+        }
+
+        await this.performDownload([url]);
+    }
+
+    async downloadBatch() {
+        const urls = this.batchUrlsInput.value
+            .split('\n')
+            .map(url => url.trim())
+            .filter(url => url);
+
+        if (urls.length === 0) {
+            alert('Vui lòng nhập ít nhất 1 URL');
+            return;
+        }
+
+        await this.performDownload(urls);
+    }
+
+    async performDownload(urls) {
+        // Disable buttons
+        this.downloadSingleBtn.disabled = true;
+        this.downloadBatchBtn.disabled = true;
+        this.downloadSingleBtn.textContent = 'Đang tải...';
+        this.downloadBatchBtn.textContent = 'Đang tải...';
+
+        try {
+            const response = await fetch('/api/download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ urls })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.displayResults(data);
+            } else {
+                alert('Lỗi: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Download error:', error);
+            alert('Lỗi kết nối server: ' + error.message);
+        } finally {
+            // Re-enable buttons
+            this.downloadSingleBtn.disabled = false;
+            this.downloadBatchBtn.disabled = false;
+            this.downloadSingleBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download Video
+            `;
+            this.downloadBatchBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download All Videos
+            `;
+        }
+    }
+
+    displayResults(data) {
+        // Show results section
+        this.downloadResults.style.display = 'block';
+
+        // Display summary
+        this.downloadSummary.innerHTML = `
+            <div class="summary-item">
+                <span class="value">${data.total}</span>
+                <span class="label">Total</span>
+            </div>
+            <div class="summary-item">
+                <span class="value" style="color: var(--success)">${data.successful}</span>
+                <span class="label">Thành công</span>
+            </div>
+            <div class="summary-item">
+                <span class="value" style="color: var(--danger)">${data.failed}</span>
+                <span class="label">Thất bại</span>
+            </div>
+        `;
+
+        // Display individual results
+        this.downloadList.innerHTML = data.results.map(result => `
+            <div class="result-item ${result.success ? 'success' : 'error'}">
+                <div class="result-url">${result.url}</div>
+                <div class="result-status ${result.success ? 'success' : 'error'}">
+                    ${result.success ? '✓ Download thành công' : '✗ ' + result.error}
+                </div>
+                ${result.success ? `
+                    <div class="result-paths">
+                        ${result.video_path ? `<p><strong>Video:</strong> ${result.video_path}</p>` : ''}
+                        ${result.audio_path ? `<p><strong>Audio:</strong> ${result.audio_path}</p>` : ''}
+                        ${result.metadata ? `<p><strong>Title:</strong> ${result.metadata.title || 'N/A'}</p>` : ''}
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+
+        // Scroll to results
+        this.downloadResults.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     new YouTubeContentDetector();
     historyManager = new HistoryManager();
     statisticsManager = new StatisticsManager();
     loadSystemInfo();
+    new DownloadManager();
     console.log('YouTube Content Detector initialized');
 });
