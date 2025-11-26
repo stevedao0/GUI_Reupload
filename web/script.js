@@ -1091,6 +1091,10 @@ class DownloadManager {
         this.downloadZipBtn = document.getElementById('downloadZipBtn');
         this.downloadInfoBanner = document.getElementById('downloadInfoBanner');
         this.serverPath = document.getElementById('serverPath');
+        this.browseFilesBtn = document.getElementById('browseFilesBtn');
+        this.filesModal = document.getElementById('filesModal');
+        this.filesModalClose = document.getElementById('filesModalClose');
+        this.filesContent = document.getElementById('filesContent');
         this.zipFilename = null;
     }
 
@@ -1106,6 +1110,14 @@ class DownloadManager {
 
         // ZIP download button
         this.downloadZipBtn.addEventListener('click', () => this.downloadZipFile());
+
+        // Browse files button
+        this.browseFilesBtn.addEventListener('click', () => this.showFilesModal());
+
+        // Files modal close
+        this.filesModalClose.addEventListener('click', () => {
+            this.filesModal.style.display = 'none';
+        });
     }
 
     switchMode(mode) {
@@ -1295,6 +1307,85 @@ class DownloadManager {
 
         console.log('Downloading ZIP file:', this.zipFilename);
     }
+
+    async showFilesModal() {
+        this.filesModal.style.display = 'flex';
+        this.filesContent.innerHTML = '<div class="loading-spinner">Đang tải danh sách files...</div>';
+
+        try {
+            const response = await fetch('/api/files/list');
+            const data = await response.json();
+
+            if (data.success && data.files.length > 0) {
+                this.filesContent.innerHTML = `
+                    <div style="margin-bottom: 15px; padding: 10px; background: var(--success); color: white; border-radius: 4px;">
+                        <strong>📁 Tổng số files: ${data.files.length}</strong>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: var(--bg-secondary); border-bottom: 2px solid var(--border);">
+                                <th style="padding: 12px; text-align: left;">Type</th>
+                                <th style="padding: 12px; text-align: left;">File Name</th>
+                                <th style="padding: 12px; text-align: right;">Size</th>
+                                <th style="padding: 12px; text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.files.map(file => {
+                                const typeIcon = file.type === 'merged' ? '🎬' : (file.type === 'video' ? '📹' : '🎵');
+                                const typeColor = file.type === 'merged' ? 'var(--success)' : (file.type === 'video' ? 'var(--primary)' : 'var(--warning)');
+                                return `
+                                    <tr style="border-bottom: 1px solid var(--border);">
+                                        <td style="padding: 12px;">
+                                            <span style="font-size: 1.2rem;">${typeIcon}</span>
+                                            <span style="color: ${typeColor}; font-weight: 600; margin-left: 5px;">${file.type.toUpperCase()}</span>
+                                        </td>
+                                        <td style="padding: 12px; font-family: monospace; font-size: 0.875rem;">${file.name}</td>
+                                        <td style="padding: 12px; text-align: right;">${this.formatFileSize(file.size)}</td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            <button class="btn-secondary" onclick="downloadManager.downloadIndividualFile('${file.path}')" style="padding: 6px 12px; font-size: 0.875rem;">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 5px;">
+                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                    <polyline points="7 10 12 15 17 10"/>
+                                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                                </svg>
+                                                Download
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                this.filesContent.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <p style="font-size: 3rem; margin-bottom: 20px;">📂</p>
+                        <p style="font-size: 1.1rem;">Chưa có files nào được download</p>
+                        <p style="font-size: 0.875rem; margin-top: 10px;">Hãy download video từ tab "Download" trước</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading files:', error);
+            this.filesContent.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--danger);">
+                    <p>❌ Lỗi khi tải danh sách files</p>
+                    <p style="font-size: 0.875rem; margin-top: 10px;">${error.message}</p>
+                </div>
+            `;
+        }
+    }
+
+    downloadIndividualFile(filepath) {
+        const downloadUrl = `/api/files/download/${encodeURIComponent(filepath)}`;
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1302,6 +1393,6 @@ document.addEventListener('DOMContentLoaded', () => {
     historyManager = new HistoryManager();
     statisticsManager = new StatisticsManager();
     loadSystemInfo();
-    new DownloadManager();
+    window.downloadManager = new DownloadManager();
     console.log('YouTube Content Detector initialized');
 });

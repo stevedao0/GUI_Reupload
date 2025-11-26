@@ -248,14 +248,22 @@
                         <div class="download-results" id="downloadResults" style="display: none;">
                             <div class="results-header">
                                 <h3>Download Results</h3>
-                                <button class="btn-download-zip" id="downloadZipBtn" style="display: none;">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                        <polyline points="7 10 12 15 17 10"/>
-                                        <line x1="12" y1="15" x2="12" y2="3"/>
-                                    </svg>
-                                    Tải ZIP File về máy
-                                </button>
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn-download-zip" id="downloadZipBtn">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="7 10 12 15 17 10"/>
+                                            <line x1="12" y1="15" x2="12" y2="3"/>
+                                        </svg>
+                                        Tải ZIP File về máy
+                                    </button>
+                                    <button class="btn-secondary" id="browseFilesBtn">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                        </svg>
+                                        Xem Files trong Server
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="download-info-banner" id="downloadInfoBanner" style="display: none;">
@@ -561,6 +569,25 @@
             </div>
             <div class="modal-body">
                 <div class="stats-grid" id="statsContent">
+                    <div class="loading-spinner">Đang tải...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="filesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Files đã Download trong Server</h2>
+                <button class="modal-close" id="filesModalClose">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="filesContent" style="max-height: 500px; overflow-y: auto;">
                     <div class="loading-spinner">Đang tải...</div>
                 </div>
             </div>

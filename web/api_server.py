@@ -1131,6 +1131,100 @@ def download_videos():
         }), 500
 
 
+@app.route('/api/files/list', methods=['GET'])
+def list_downloaded_files():
+    """List all downloaded files in temp_downloads"""
+    try:
+        from pathlib import Path
+        temp_dir = Path('temp_downloads')
+
+        if not temp_dir.exists():
+            return jsonify({
+                'success': True,
+                'files': []
+            })
+
+        files = []
+
+        # Get merged files
+        for file in temp_dir.glob('*_merged.mp4'):
+            stat = file.stat()
+            files.append({
+                'name': file.name,
+                'size': stat.st_size,
+                'type': 'merged',
+                'path': str(file.relative_to(temp_dir.parent))
+            })
+
+        # Get video files
+        video_dir = temp_dir / 'videos'
+        if video_dir.exists():
+            for file in video_dir.glob('*.mp4'):
+                if not file.name.endswith('_temp.mp4'):
+                    stat = file.stat()
+                    files.append({
+                        'name': file.name,
+                        'size': stat.st_size,
+                        'type': 'video',
+                        'path': str(file.relative_to(temp_dir.parent))
+                    })
+
+        # Get audio files
+        audio_dir = temp_dir / 'audios'
+        if audio_dir.exists():
+            for file in audio_dir.glob('*.mp3'):
+                if not file.name.endswith('_temp.mp3'):
+                    stat = file.stat()
+                    files.append({
+                        'name': file.name,
+                        'size': stat.st_size,
+                        'type': 'audio',
+                        'path': str(file.relative_to(temp_dir.parent))
+                    })
+
+        # Sort by modification time (newest first)
+        files.sort(key=lambda x: Path(x['path']).stat().st_mtime, reverse=True)
+
+        return jsonify({
+            'success': True,
+            'files': files
+        })
+
+    except Exception as e:
+        logger.error(f"Error listing files: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/files/download/<path:filepath>', methods=['GET'])
+def download_file(filepath):
+    """Download individual file"""
+    try:
+        from flask import send_file
+        file_path = Path(filepath)
+
+        if not file_path.exists():
+            return jsonify({
+                'success': False,
+                'error': 'File not found'
+            }), 404
+
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=file_path.name
+        )
+
+    except Exception as e:
+        logger.error(f"Error downloading file: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/download/zip/<filename>', methods=['GET'])
 def download_zip(filename):
     """Download the created ZIP file"""
