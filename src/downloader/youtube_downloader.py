@@ -67,56 +67,57 @@ class YouTubeDownloader:
         """
         Verify that a downloaded file is valid and not corrupted
 
+        Simple file integrity check - only checks file existence and size
+        Does NOT perform deep analysis (ffprobe, audio analysis, etc) to keep cache check
+        fast and independent from video/audio processing pipeline
+
         Args:
             file_path: Path to the file to check
             file_type: Type of file (for logging)
 
         Returns:
-            True if file is valid, False otherwise
+            True if file passes basic integrity checks, False otherwise
         """
         if not file_path.exists():
             return False
 
-        # Check file size
-        file_size = file_path.stat().st_size
-        if file_size < self.min_file_size:
-            logger.warning(f"⚠️  {file_type} file too small ({file_size} bytes): {file_path.name}")
-            return False
+        try:
+            # Check file size
+            file_size = file_path.stat().st_size
 
-        # For video files, check if it's a valid video format
-        if file_type == "video" and file_path.suffix.lower() in ['.mp4', '.webm', '.mkv']:
-            try:
-                # Try to get duration using ffprobe
-                ffprobe = get_ffprobe_path()
-                result = subprocess.run(
-                    [ffprobe, '-v', 'error', '-show_entries', 'format=duration',
-                     '-of', 'default=noprint_wrappers=1:nokey=1', str(file_path)],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-                if result.returncode != 0:
-                    logger.warning(f"⚠️  Invalid video file (ffprobe failed): {file_path.name}")
-                    return False
-
-                duration_str = result.stdout.strip()
-                if not duration_str or float(duration_str) <= 0:
-                    logger.warning(f"⚠️  Video file has no duration: {file_path.name}")
-                    return False
-
-            except Exception as e:
-                logger.warning(f"⚠️  Failed to verify video file: {e}")
-                # Don't fail on verification error, just warn
-                return True
-
-        # For audio files, basic check is sufficient
-        elif file_type == "audio" and file_path.suffix.lower() in ['.mp3', '.m4a', '.opus']:
-            # Just check file size is reasonable
-            if file_size < 1024:  # At least 1KB
-                logger.warning(f"⚠️  Audio file too small: {file_path.name}")
+            # Minimum file size check
+            if file_size < self.min_file_size:
+                logger.warning(f"⚠️  {file_type} file too small ({file_size} bytes): {file_path.name}")
                 return False
 
-        return True
+            # Check if file is readable
+            with open(file_path, 'rb') as f:
+                # Try to read first few bytes to ensure file is not corrupted
+                header = f.read(16)
+                if len(header) < 16:
+                    logger.warning(f"⚠️  {file_type} file appears corrupted (cannot read header): {file_path.name}")
+                    return False
+
+            # File type specific minimum size checks (based on typical file sizes)
+            if file_type == "video":
+                # Video files should be at least 100KB for even a short clip
+                if file_size < 100 * 1024:
+                    logger.warning(f"⚠️  Video file suspiciously small ({file_size / 1024:.1f} KB): {file_path.name}")
+                    return False
+
+            elif file_type == "audio":
+                # Audio files should be at least 10KB for even a short clip
+                if file_size < 10 * 1024:
+                    logger.warning(f"⚠️  Audio file suspiciously small ({file_size / 1024:.1f} KB): {file_path.name}")
+                    return False
+
+            # All checks passed
+            return True
+
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to verify {file_type} file integrity: {e}")
+            # On verification error, assume file might be valid (don't delete unnecessarily)
+            return True
 
     def _is_network_error(self, error: Exception) -> bool:
         """Check if error is network-related and can be retried"""

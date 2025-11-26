@@ -15,8 +15,10 @@ download:
 
   # Cache/Resume Settings
   enable_cache: true     # Enable file cache - reuse already downloaded files
-  verify_file_size: true # Check file integrity before reusing cached files
+  verify_file_size: true # Check file integrity before reusing cached files (basic checks only: size, readability)
   min_file_size: 1024    # Minimum valid file size in bytes (1KB) - smaller files are considered corrupted
+  # NOTE: Cache verification is FAST and does NOT use ffprobe/audio analysis
+  # Only basic checks: file exists, readable, reasonable size for type (video > 100KB, audio > 10KB)
 
 # GPU Settings
 gpu:
