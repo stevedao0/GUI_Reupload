@@ -310,11 +310,11 @@ class YouTubeContentDetector {
             <div style="text-align: center; animation: fadeIn 0.3s ease;">
                 <div style="font-size: 80px; margin-bottom: 30px;">⚠️</div>
                 <h1 style="font-size: 48px; margin-bottom: 20px; font-weight: 700;">FORCE KILL</h1>
-                <p style="font-size: 24px; margin-bottom: 30px; opacity: 0.9;">Đang dừng server và đóng ứng dụng...</p>
+                <p style="font-size: 24px; margin-bottom: 30px; opacity: 0.9;">Đang dừng server...</p>
                 <div style="width: 300px; height: 6px; background: rgba(255,255,255,0.3); border-radius: 10px; overflow: hidden; margin: 0 auto;">
-                    <div style="width: 100%; height: 100%; background: white; animation: progress 1.5s ease-in-out;"></div>
+                    <div style="width: 100%; height: 100%; background: white; animation: progress 1.3s ease-in-out;"></div>
                 </div>
-                <p style="font-size: 16px; margin-top: 40px; opacity: 0.8;">Tab này sẽ tự động đóng trong 2 giây...</p>
+                <p style="font-size: 16px; margin-top: 40px; opacity: 0.8;">Đang đóng...</p>
             </div>
             <style>
                 @keyframes fadeIn {
@@ -330,39 +330,31 @@ class YouTubeContentDetector {
 
         document.body.appendChild(overlay);
 
+        // Close tab immediately after 1.5 seconds (don't wait for response)
+        setTimeout(() => {
+            // Try to close the tab
+            window.close();
+
+            // If window.close() fails, redirect to blank page
+            setTimeout(() => {
+                window.location.href = 'about:blank';
+            }, 300);
+        }, 1500);
+
+        // Send kill request (but don't wait for response since server will die)
         try {
-            const response = await fetch('/api/force-kill', {
+            fetch('/api/force-kill', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                // Important: don't wait for response
+                keepalive: false
+            }).catch(() => {
+                // Ignore all errors - server is dying, this is expected
             });
-
-            const result = await response.json();
-
-            if (result.success && result.close_tab) {
-                // Close tab after 2 seconds
-                setTimeout(() => {
-                    // Try multiple methods to close the tab
-                    window.close();
-
-                    // If window.close() doesn't work (some browsers block it)
-                    // Redirect to a blank page
-                    setTimeout(() => {
-                        window.location.href = 'about:blank';
-                    }, 500);
-                }, 2000);
-            }
         } catch (error) {
-            // Expected error - server killed itself before responding
-            // Still close the tab
-            setTimeout(() => {
-                window.close();
-
-                setTimeout(() => {
-                    window.location.href = 'about:blank';
-                }, 500);
-            }, 2000);
+            // Ignore - server will be dead anyway
         }
     }
 
