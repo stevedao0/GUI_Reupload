@@ -635,6 +635,7 @@ class HistoryManager {
     constructor() {
         this.historyModal = document.getElementById('historyModal');
         this.historyBtn = document.getElementById('historyBtn');
+        this.shutdownBtn = document.getElementById('shutdownBtn');
         this.historyModalClose = document.getElementById('historyModalClose');
         this.historyList = document.getElementById('historyList');
         this.historySearch = document.getElementById('historySearch');
@@ -644,6 +645,7 @@ class HistoryManager {
 
     init() {
         this.historyBtn.addEventListener('click', () => this.open());
+        this.shutdownBtn.addEventListener('click', () => this.shutdownServer());
         this.historyModalClose.addEventListener('click', () => this.close());
         this.historyModal.addEventListener('click', (e) => {
             if (e.target === this.historyModal) this.close();
@@ -801,6 +803,64 @@ class HistoryManager {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    async shutdownServer() {
+        if (!confirm('Bạn có chắc muốn tắt server?\n\nServer sẽ dừng hẳn và tab này sẽ đóng.')) {
+            return;
+        }
+
+        try {
+            this.shutdownBtn.disabled = true;
+            this.shutdownBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+                    <line x1="12" y1="2" x2="12" y2="12"/>
+                </svg>
+                Đang tắt...
+            `;
+
+            const response = await fetch('/api/force-kill', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                window.close();
+
+                setTimeout(() => {
+                    document.body.innerHTML = `
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; text-align: center; padding: 2rem;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; color: #10B981; margin-bottom: 1rem;">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            <h1 style="font-size: 2rem; color: #0F172A; margin-bottom: 0.5rem;">Server đã tắt thành công</h1>
+                            <p style="font-size: 1.1rem; color: #64748B; margin-bottom: 2rem;">Bạn có thể đóng tab này.</p>
+                            <button onclick="window.close()" style="padding: 0.75rem 1.5rem; background: #3B82F6; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer;">
+                                Đóng Tab
+                            </button>
+                        </div>
+                    `;
+                }, 100);
+            }
+        } catch (error) {
+            console.error('Shutdown error:', error);
+            document.body.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; text-align: center; padding: 2rem;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; color: #10B981; margin-bottom: 1rem;">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <h1 style="font-size: 2rem; color: #0F172A; margin-bottom: 0.5rem;">Server đã tắt</h1>
+                    <p style="font-size: 1.1rem; color: #64748B; margin-bottom: 2rem;">Bạn có thể đóng tab này.</p>
+                    <button onclick="window.close()" style="padding: 0.75rem 1.5rem; background: #3B82F6; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer;">
+                        Đóng Tab
+                    </button>
+                </div>
+            `;
+        }
     }
 }
 

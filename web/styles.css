@@ -139,6 +139,35 @@ body {
     height: 16px;
 }
 
+.btn-danger {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: #EF4444;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.btn-danger:hover {
+    background: #DC2626;
+}
+
+.btn-danger:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-danger svg {
+    width: 16px;
+    height: 16px;
+}
+
 .main-container {
     max-width: 1400px;
     margin: 0 auto;
