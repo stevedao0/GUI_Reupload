@@ -631,7 +631,342 @@ class YouTubeContentDetector {
     }
 }
 
+class HistoryManager {
+    constructor() {
+        this.historyModal = document.getElementById('historyModal');
+        this.historyBtn = document.getElementById('historyBtn');
+        this.historyModalClose = document.getElementById('historyModalClose');
+        this.historyList = document.getElementById('historyList');
+        this.historySearch = document.getElementById('historySearch');
+
+        this.init();
+    }
+
+    init() {
+        this.historyBtn.addEventListener('click', () => this.open());
+        this.historyModalClose.addEventListener('click', () => this.close());
+        this.historyModal.addEventListener('click', (e) => {
+            if (e.target === this.historyModal) this.close();
+        });
+
+        this.historySearch.addEventListener('input', (e) => {
+            if (e.target.value.trim()) {
+                this.search(e.target.value);
+            } else {
+                this.loadHistory();
+            }
+        });
+    }
+
+    async open() {
+        this.historyModal.classList.add('show');
+        await this.loadHistory();
+    }
+
+    close() {
+        this.historyModal.classList.remove('show');
+    }
+
+    async loadHistory() {
+        this.historyList.innerHTML = '<div class="loading-spinner">Đang tải...</div>';
+
+        try {
+            const response = await fetch('/api/history');
+            const data = await response.json();
+
+            if (data.success && data.history.length > 0) {
+                this.renderHistory(data.history);
+            } else {
+                this.historyList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                        </div>
+                        <h3 class="empty-state-title">Chưa có lịch sử</h3>
+                        <p class="empty-state-text">Bắt đầu phân tích để xem lịch sử ở đây</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading history:', error);
+            this.historyList.innerHTML = `
+                <div class="empty-state">
+                    <p class="empty-state-text">Lỗi khi tải lịch sử</p>
+                </div>
+            `;
+        }
+    }
+
+    async search(query) {
+        this.historyList.innerHTML = '<div class="loading-spinner">Đang tìm kiếm...</div>';
+
+        try {
+            const response = await fetch(`/api/history/search?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+
+            if (data.success && data.results.length > 0) {
+                this.renderHistory(data.results);
+            } else {
+                this.historyList.innerHTML = `
+                    <div class="empty-state">
+                        <p class="empty-state-text">Không tìm thấy kết quả</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error searching:', error);
+        }
+    }
+
+    renderHistory(items) {
+        this.historyList.innerHTML = items.map(item => `
+            <div class="history-item" data-id="${item.id}">
+                <div class="history-item-header">
+                    <div>
+                        <div class="history-item-title">${this.escapeHtml(item.file_name)}</div>
+                        <div class="history-item-date">${this.formatDate(item.created_at)}</div>
+                    </div>
+                </div>
+                <div class="history-item-stats">
+                    <div class="history-stat">
+                        <span class="history-stat-value">${item.total_videos || 0}</span>
+                        <span class="history-stat-label">Videos</span>
+                    </div>
+                    <div class="history-stat">
+                        <span class="history-stat-value">${item.reupload_count || 0}</span>
+                        <span class="history-stat-label">Reuploads</span>
+                    </div>
+                    <div class="history-stat">
+                        <span class="history-stat-value">${(item.reupload_percent || 0).toFixed(1)}%</span>
+                        <span class="history-stat-label">Tỷ lệ</span>
+                    </div>
+                </div>
+                <div class="history-item-actions">
+                    <button class="history-btn" onclick="historyManager.viewDetails(${item.id})">Xem chi tiết</button>
+                    <button class="history-btn danger" onclick="historyManager.deleteItem(${item.id})">Xóa</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async viewDetails(id) {
+        try {
+            const response = await fetch(`/api/history/${id}`);
+            const data = await response.json();
+
+            if (data.success) {
+                alert(`Chi tiết phân tích:\n\n` +
+                    `File: ${data.analysis.file_name}\n` +
+                    `Ngày: ${this.formatDate(data.analysis.created_at)}\n` +
+                    `Tổng videos: ${data.analysis.total_videos}\n` +
+                    `Reuploads: ${data.analysis.reupload_count}\n` +
+                    `Tỷ lệ: ${data.analysis.reupload_percent.toFixed(1)}%\n` +
+                    `Clusters: ${data.analysis.cluster_count}`
+                );
+            }
+        } catch (error) {
+            console.error('Error loading details:', error);
+            alert('Lỗi khi tải chi tiết');
+        }
+    }
+
+    async deleteItem(id) {
+        if (!confirm('Bạn có chắc muốn xóa phân tích này?')) return;
+
+        try {
+            const response = await fetch(`/api/history/${id}`, { method: 'DELETE' });
+            const data = await response.json();
+
+            if (data.success) {
+                await this.loadHistory();
+            } else {
+                alert('Lỗi khi xóa: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error deleting:', error);
+            alert('Lỗi khi xóa');
+        }
+    }
+
+    formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleString('vi-VN');
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
+class StatisticsManager {
+    constructor() {
+        this.statsModal = document.getElementById('statsModal');
+        this.statsBtn = document.getElementById('statsBtn');
+        this.statsModalClose = document.getElementById('statsModalClose');
+        this.statsContent = document.getElementById('statsContent');
+        this.trendChart = null;
+
+        this.init();
+    }
+
+    init() {
+        this.statsBtn.addEventListener('click', () => this.open());
+        this.statsModalClose.addEventListener('click', () => this.close());
+        this.statsModal.addEventListener('click', (e) => {
+            if (e.target === this.statsModal) this.close();
+        });
+    }
+
+    async open() {
+        this.statsModal.classList.add('show');
+        await this.loadStatistics();
+    }
+
+    close() {
+        this.statsModal.classList.remove('show');
+    }
+
+    async loadStatistics() {
+        this.statsContent.innerHTML = '<div class="loading-spinner">Đang tải...</div>';
+
+        try {
+            const response = await fetch('/api/statistics');
+            const data = await response.json();
+
+            if (data.success) {
+                this.renderStatistics(data.statistics);
+            } else {
+                this.statsContent.innerHTML = `
+                    <div class="empty-state">
+                        <p class="empty-state-text">Không có dữ liệu thống kê</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading statistics:', error);
+            this.statsContent.innerHTML = `
+                <div class="empty-state">
+                    <p class="empty-state-text">Lỗi khi tải thống kê</p>
+                </div>
+            `;
+        }
+    }
+
+    renderStatistics(stats) {
+        const overall = stats.overall;
+
+        this.statsContent.innerHTML = `
+            <div class="stats-overview">
+                <div class="stat-card">
+                    <span class="stat-card-value">${overall.total_runs || 0}</span>
+                    <span class="stat-card-label">Lần phân tích</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-card-value">${overall.total_videos_analyzed || 0}</span>
+                    <span class="stat-card-label">Videos đã phân tích</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-card-value">${overall.total_reuploads_found || 0}</span>
+                    <span class="stat-card-label">Reuploads tìm thấy</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-card-value">${(overall.avg_reupload_rate || 0).toFixed(1)}%</span>
+                    <span class="stat-card-label">Tỷ lệ trung bình</span>
+                </div>
+            </div>
+
+            ${stats.trend && stats.trend.length > 0 ? `
+                <div class="chart-container">
+                    <h3 class="chart-title">Xu hướng 30 ngày gần đây</h3>
+                    <canvas id="trendChart"></canvas>
+                </div>
+            ` : ''}
+
+            ${stats.top_channels && stats.top_channels.length > 0 ? `
+                <div class="chart-container">
+                    <h3 class="chart-title">Top kênh reupload nhiều nhất</h3>
+                    <div class="top-channels-list">
+                        ${stats.top_channels.map(channel => `
+                            <div class="channel-item">
+                                <span class="channel-name">${this.escapeHtml(channel.channel_name || 'Unknown')}</span>
+                                <span class="channel-count">${channel.reupload_count}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        `;
+
+        if (stats.trend && stats.trend.length > 0) {
+            this.renderTrendChart(stats.trend);
+        }
+    }
+
+    renderTrendChart(trend) {
+        const ctx = document.getElementById('trendChart');
+        if (!ctx) return;
+
+        if (this.trendChart) {
+            this.trendChart.destroy();
+        }
+
+        const labels = trend.map(d => new Date(d.date).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' })).reverse();
+        const data = trend.map(d => d.avg_rate).reverse();
+
+        this.trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Tỷ lệ reupload (%)',
+                    data: data,
+                    borderColor: '#3B82F6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
+let historyManager;
+let statisticsManager;
+
 document.addEventListener('DOMContentLoaded', () => {
     new YouTubeContentDetector();
+    historyManager = new HistoryManager();
+    statisticsManager = new StatisticsManager();
     console.log('YouTube Content Detector initialized');
 });

@@ -20,11 +20,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.pipeline import ProcessingPipeline
 from src.utils import setup_logger, get_config
+from database import AnalysisDatabase
 
 logger = setup_logger(__name__)
 
 app = Flask(__name__, static_folder='.')
 CORS(app)
+
+# Initialize database
+db = AnalysisDatabase()
 
 config = get_config('../config.yaml')
 pipeline = None
@@ -355,6 +359,45 @@ def analyze_videos():
         logger.info(f"Clusters: {statistics['clusters']}")
         logger.info(f"Average similarity: {statistics['average_similarity']*100:.1f}%")
         logger.info("="*80)
+
+        # Save to database
+        try:
+            analysis_data = {
+                'file_name': file.filename,
+                'total_videos': statistics['total_videos'],
+                'reupload_count': statistics['total_reuploads'],
+                'reupload_percent': statistics['reupload_percentage'],
+                'cluster_count': statistics['clusters'],
+                'audio_threshold': audio_threshold,
+                'video_threshold': video_threshold,
+                'combined_threshold': combined_threshold,
+                'gpu_enabled': gpu_enabled,
+                'processing_time_seconds': results.get('processing_time', 0),
+                'summary': {
+                    'avg_similarity': statistics['average_similarity']
+                }
+            }
+
+            # Add video details if available
+            if 'groups' in results:
+                video_list = []
+                for group in results['groups']:
+                    for video_data in group.get('videos', []):
+                        video_list.append({
+                            'video_id': video_data.get('id', ''),
+                            'channel_name': video_data.get('channel', ''),
+                            'title': video_data.get('title', ''),
+                            'is_reupload': group.get('is_reupload', False),
+                            'cluster_id': group.get('cluster_id', -1),
+                            'similarity_score': video_data.get('similarity', 0)
+                        })
+                analysis_data['videos'] = video_list
+
+            run_id = db.save_analysis(analysis_data)
+            logger.info(f"✅ Analysis saved to database (ID: {run_id})")
+            response['run_id'] = run_id
+        except Exception as db_error:
+            logger.error(f"Failed to save analysis to database: {db_error}")
 
         return jsonify(response)
 
@@ -784,6 +827,98 @@ def get_config_api():
         'combinedThreshold': config.get('thresholds.combined_similarity', 0.70),
         'gpuEnabled': config.get('gpu.enabled', True)
     })
+
+
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    """Get analysis history with pagination"""
+    try:
+        limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
+
+        history = db.get_history(limit=limit, offset=offset)
+
+        return jsonify({
+            'success': True,
+            'history': history,
+            'count': len(history)
+        })
+    except Exception as e:
+        logger.error(f"Error fetching history: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/history/<int:run_id>', methods=['GET'])
+def get_history_detail(run_id):
+    """Get specific analysis by ID"""
+    try:
+        analysis = db.get_analysis_by_id(run_id)
+
+        if analysis is None:
+            return jsonify({'success': False, 'error': 'Analysis not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'analysis': analysis
+        })
+    except Exception as e:
+        logger.error(f"Error fetching analysis {run_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/history/<int:run_id>', methods=['DELETE'])
+def delete_history(run_id):
+    """Delete specific analysis"""
+    try:
+        success = db.delete_analysis(run_id)
+
+        if not success:
+            return jsonify({'success': False, 'error': 'Analysis not found'}), 404
+
+        logger.info(f"✅ Analysis {run_id} deleted")
+        return jsonify({
+            'success': True,
+            'message': 'Analysis deleted successfully'
+        })
+    except Exception as e:
+        logger.error(f"Error deleting analysis {run_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/statistics', methods=['GET'])
+def get_statistics():
+    """Get overall statistics"""
+    try:
+        stats = db.get_statistics()
+
+        return jsonify({
+            'success': True,
+            'statistics': stats
+        })
+    except Exception as e:
+        logger.error(f"Error fetching statistics: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/history/search', methods=['GET'])
+def search_history():
+    """Search history by query"""
+    try:
+        query = request.args.get('q', '')
+
+        if not query:
+            return jsonify({'success': False, 'error': 'Query parameter required'}), 400
+
+        results = db.search_history(query)
+
+        return jsonify({
+            'success': True,
+            'results': results,
+            'count': len(results)
+        })
+    except Exception as e:
+        logger.error(f"Error searching history: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':
