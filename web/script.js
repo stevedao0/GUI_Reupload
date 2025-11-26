@@ -7,11 +7,78 @@ class YouTubeContentDetector {
         this.jobId = null;
         this.logEventSource = null;
         this.autoScroll = true;
+        this.clientId = 'client_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        this.heartbeatInterval = null;
 
         this.initElements();
         this.attachEventListeners();
         this.initSliders();
         this.initConsole();
+        this.setupCleanup();
+        this.startHeartbeat();
+    }
+
+    setupCleanup() {
+        // Cancel processing when tab/window closes
+        window.addEventListener('beforeunload', (e) => {
+            if (this.isProcessing) {
+                // Cancel the job
+                this.cancelAnalysis(true); // silent = true
+
+                // Show confirmation dialog
+                e.preventDefault();
+                e.returnValue = 'Phân tích đang chạy. Bạn có chắc muốn thoát?';
+                return e.returnValue;
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('unload', () => {
+            this.cleanup();
+        });
+
+        // Handle visibility change (tab switch)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Tab hidden but don't cancel
+                console.log('Tab hidden');
+            } else {
+                // Tab visible again
+                console.log('Tab visible');
+            }
+        });
+    }
+
+    startHeartbeat() {
+        // Send heartbeat every 10 seconds to signal client is alive
+        this.heartbeatInterval = setInterval(() => {
+            fetch('/api/heartbeat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_id: this.clientId })
+            }).catch(err => console.warn('Heartbeat failed:', err));
+        }, 10000);
+    }
+
+    cleanup() {
+        // Stop heartbeat
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+
+        // Close SSE connection
+        if (this.logEventSource) {
+            this.logEventSource.close();
+            this.logEventSource = null;
+        }
+
+        // Cancel any ongoing processing
+        if (this.isProcessing) {
+            this.cancelAnalysis(true);
+        }
+
+        console.log('Cleanup complete');
     }
 
     initElements() {
@@ -291,40 +358,50 @@ class YouTubeContentDetector {
         console.log('Analysis complete:', results);
     }
 
-    async cancelAnalysis() {
-        if (!confirm('Bạn có chắc muốn hủy phân tích? Tất cả tiến trình sẽ bị mất.')) {
+    async cancelAnalysis(silent = false) {
+        if (!silent && !confirm('Bạn có chắc muốn hủy phân tích? Tất cả tiến trình sẽ bị mất.')) {
             return;
         }
 
         console.log('Cancelling analysis...');
-        this.progressText.textContent = 'Đang hủy... (đợi 3 giây)';
-        this.cancelBtn.disabled = true;
-        this.cancelBtn.textContent = 'Đang hủy...';
 
-        // Show force kill button immediately
-        this.forceKillBtn.style.display = 'block';
-        this.showNotification('⚠️ Nếu không dừng, click "Force Kill Server"', 'warning');
+        if (!silent) {
+            this.progressText.textContent = 'Đang hủy... (đợi 3 giây)';
+            this.cancelBtn.disabled = true;
+            this.cancelBtn.textContent = 'Đang hủy...';
+
+            // Show force kill button immediately
+            this.forceKillBtn.style.display = 'block';
+            this.showNotification('⚠️ Nếu không dừng, click "Force Kill Server"', 'warning');
+        }
 
         try {
             const response = await fetch('/api/cancel', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({ client_id: this.clientId })
             });
 
             const result = await response.json();
 
             if (result.success) {
                 console.log('Cancellation request sent');
-                this.progressText.textContent = 'Đã gửi yêu cầu hủy. Nếu vẫn chạy, click Force Kill.';
+                if (!silent) {
+                    this.progressText.textContent = 'Đã gửi yêu cầu hủy. Nếu vẫn chạy, click Force Kill.';
+                }
             } else {
                 console.error('Cancellation failed:', result.error);
-                this.showNotification('Lỗi khi hủy: ' + result.error, 'error');
+                if (!silent) {
+                    this.showNotification('Lỗi khi hủy: ' + result.error, 'error');
+                }
             }
         } catch (error) {
             console.error('Error canceling:', error);
-            this.showNotification('Không thể hủy: ' + error.message, 'error');
+            if (!silent) {
+                this.showNotification('Không thể hủy: ' + error.message, 'error');
+            }
         }
 
         // Don't reset immediately - keep showing force kill option

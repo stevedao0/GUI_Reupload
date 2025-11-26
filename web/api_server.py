@@ -33,10 +33,47 @@ current_job = None
 cancellation_flag = threading.Event()
 processing_thread = None  # Track the processing thread
 cancellation_requested = False  # Simple flag for cancellation
+active_clients = []  # Track active web clients
 
 # Real-time log streaming
 log_queue = queue.Queue(maxsize=1000)  # Store last 1000 log messages
 log_clients = []  # List of connected SSE clients
+
+
+def check_active_clients():
+    """Check if any clients are still connected"""
+    return len(log_clients) > 0 or len(active_clients) > 0
+
+
+def auto_cancel_if_no_clients():
+    """Auto-cancel processing if no clients connected"""
+    if processing_thread and processing_thread.is_alive():
+        if not check_active_clients():
+            logger.warning("⚠️  No clients connected - auto-cancelling processing")
+            cancellation_flag.set()
+
+
+def cleanup_stale_clients():
+    """Remove clients that haven't sent heartbeat in a while"""
+    # This is called periodically to clean up dead clients
+    # Active clients list is managed by heartbeat endpoint
+    pass
+
+
+# Background thread to monitor clients
+def client_monitor():
+    """Monitor active clients and auto-cancel if all disconnect"""
+    import time
+    while True:
+        time.sleep(30)  # Check every 30 seconds
+        auto_cancel_if_no_clients()
+
+
+# Start client monitor thread
+import threading
+monitor_thread = threading.Thread(target=client_monitor, daemon=True, name="ClientMonitor")
+monitor_thread.start()
+logger.info("✅ Client monitor thread started")
 
 
 class WebLogHandler(logging.Handler):
@@ -487,6 +524,11 @@ def stream_logs():
         local_queue = queue.Queue(maxsize=100)
         log_clients.append(local_queue)
 
+        # Track this as an active client
+        client_id = id(local_queue)
+        active_clients.append(client_id)
+        logger.info(f"✅ Client connected (ID: {client_id}, Total: {len(active_clients)})")
+
         try:
             while True:
                 try:
@@ -496,10 +538,19 @@ def stream_logs():
                 except queue.Empty:
                     # Send keepalive ping every 30 seconds
                     yield f": keepalive\n\n"
+                    # Check if processing should be cancelled
+                    auto_cancel_if_no_clients()
         except GeneratorExit:
             # Client disconnected
             if local_queue in log_clients:
                 log_clients.remove(local_queue)
+            if client_id in active_clients:
+                active_clients.remove(client_id)
+
+            logger.warning(f"⚠️  Client disconnected (ID: {client_id}, Remaining: {len(active_clients)})")
+
+            # Auto-cancel if no more clients
+            auto_cancel_if_no_clients()
 
     return Response(generate(), mimetype='text/event-stream')
 
@@ -511,6 +562,36 @@ def get_log_history():
     return jsonify({
         'success': True,
         'logs': logs
+    })
+
+
+@app.route('/api/heartbeat', methods=['POST'])
+def heartbeat():
+    """Client heartbeat to signal it's still alive"""
+    client_id = request.json.get('client_id')
+    if client_id and client_id not in active_clients:
+        active_clients.append(client_id)
+
+    return jsonify({
+        'success': True,
+        'active_clients': len(active_clients),
+        'processing': processing_thread is not None and processing_thread.is_alive()
+    })
+
+
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    """Get server status for debugging"""
+    return jsonify({
+        'success': True,
+        'status': {
+            'active_clients': len(active_clients),
+            'log_clients': len(log_clients),
+            'processing': processing_thread is not None and processing_thread.is_alive(),
+            'cancellation_flag': cancellation_flag.is_set(),
+            'current_job': current_job is not None,
+            'client_ids': active_clients[:5]  # Show first 5 for privacy
+        }
     })
 
 
