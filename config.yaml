@@ -13,6 +13,11 @@ download:
   temp_dir: "temp_downloads"
   keep_files: true       # Keep downloaded files after processing (for testing/debugging)
 
+  # Cache/Resume Settings
+  enable_cache: true     # Enable file cache - reuse already downloaded files
+  verify_file_size: true # Check file integrity before reusing cached files
+  min_file_size: 1024    # Minimum valid file size in bytes (1KB) - smaller files are considered corrupted
+
 # GPU Settings
 gpu:
   enabled: true

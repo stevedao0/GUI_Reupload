@@ -37,13 +37,13 @@ class YouTubeDownloader:
         self.config = config
         self.temp_dir = Path(config.get('download.temp_dir', 'temp_downloads'))
         self.temp_dir.mkdir(exist_ok=True)
-        
+
         # Create subdirectories
         self.video_dir = self.temp_dir / "videos"
         self.audio_dir = self.temp_dir / "audios"
         self.video_dir.mkdir(exist_ok=True)
         self.audio_dir.mkdir(exist_ok=True)
-        
+
         self.max_parallel = config.get('download.max_parallel', 8)
         self.video_quality = config.get('download.video_quality', '480p')
         self.audio_quality = config.get('download.audio_quality', '128')
@@ -52,12 +52,77 @@ class YouTubeDownloader:
         self.fragment_retries = config.get('download.fragment_retries', 10)
         self.max_retry_attempts = config.get('download.max_retry_attempts', 3)  # Number of wrapper-level retries
         self.retry_delay_base = config.get('download.retry_delay_base', 2)  # Base delay in seconds (exponential backoff)
+
+        # Cache settings
+        self.enable_cache = config.get('download.enable_cache', True)  # Enable file cache/resume
+        self.verify_file_size = config.get('download.verify_file_size', True)  # Check file integrity
+        self.min_file_size = config.get('download.min_file_size', 1024)  # Minimum valid file size (1KB)
+
+        # Statistics
+        self.cache_hits = 0
+        self.cache_misses = 0
+        self.corrupted_files = 0
     
+    def _verify_file_integrity(self, file_path: Path, file_type: str = "file") -> bool:
+        """
+        Verify that a downloaded file is valid and not corrupted
+
+        Args:
+            file_path: Path to the file to check
+            file_type: Type of file (for logging)
+
+        Returns:
+            True if file is valid, False otherwise
+        """
+        if not file_path.exists():
+            return False
+
+        # Check file size
+        file_size = file_path.stat().st_size
+        if file_size < self.min_file_size:
+            logger.warning(f"⚠️  {file_type} file too small ({file_size} bytes): {file_path.name}")
+            return False
+
+        # For video files, check if it's a valid video format
+        if file_type == "video" and file_path.suffix.lower() in ['.mp4', '.webm', '.mkv']:
+            try:
+                # Try to get duration using ffprobe
+                ffprobe = get_ffprobe_path()
+                result = subprocess.run(
+                    [ffprobe, '-v', 'error', '-show_entries', 'format=duration',
+                     '-of', 'default=noprint_wrappers=1:nokey=1', str(file_path)],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                if result.returncode != 0:
+                    logger.warning(f"⚠️  Invalid video file (ffprobe failed): {file_path.name}")
+                    return False
+
+                duration_str = result.stdout.strip()
+                if not duration_str or float(duration_str) <= 0:
+                    logger.warning(f"⚠️  Video file has no duration: {file_path.name}")
+                    return False
+
+            except Exception as e:
+                logger.warning(f"⚠️  Failed to verify video file: {e}")
+                # Don't fail on verification error, just warn
+                return True
+
+        # For audio files, basic check is sufficient
+        elif file_type == "audio" and file_path.suffix.lower() in ['.mp3', '.m4a', '.opus']:
+            # Just check file size is reasonable
+            if file_size < 1024:  # At least 1KB
+                logger.warning(f"⚠️  Audio file too small: {file_path.name}")
+                return False
+
+        return True
+
     def _is_network_error(self, error: Exception) -> bool:
         """Check if error is network-related and can be retried"""
         error_str = str(error).lower()
         error_type = type(error).__name__.lower()
-        
+
         network_keywords = [
             'timeout', 'connection', 'network', 'unreachable',
             'refused', 'reset', 'broken pipe', 'errno', 'socket',
@@ -65,7 +130,7 @@ class YouTubeDownloader:
             'temporary failure', 'name resolution', 'dns',
             'ssl', 'certificate', 'handshake'
         ]
-        
+
         return any(keyword in error_str or keyword in error_type for keyword in network_keywords)
     
     def _get_video_id(self, url: str) -> str:
@@ -198,74 +263,109 @@ class YouTubeDownloader:
             # Metadata path should match file paths for consistency
             metadata_path = self.temp_dir / f"{video_id}_metadata.json"
         
-        # Check if files already exist (skip download if found)
-        # Log file existence check for debugging
-        video_exists = video_path.exists()
-        audio_exists = audio_path.exists()
-        metadata_exists = metadata_path.exists()
-        
-        logger.info(f"🔍 Checking existing files for {video_id} (segment: {is_segment}):")
-        logger.info(f"   Video: {video_path.name} - {'✓ EXISTS' if video_exists else '✗ MISSING'}")
-        logger.info(f"   Audio: {audio_path.name} - {'✓ EXISTS' if audio_exists else '✗ MISSING'}")
-        logger.info(f"   Metadata: {metadata_path.name} - {'✓ EXISTS' if metadata_exists else '✗ MISSING'}")
-        
-        if video_exists and audio_exists:
-            # If both files exist, we can skip download even without metadata
-            # Try to load metadata if available, otherwise create minimal metadata
-            existing_metadata = None
-            if metadata_exists:
-                try:
-                    with open(metadata_path, 'r', encoding='utf-8') as f:
-                        existing_metadata = json.load(f)
-                    logger.info(f"⏭️  Skipping download for {video_id}: all files exist (with metadata)")
-                except Exception as e:
-                    logger.warning(f"⚠️  Failed to load existing metadata for {video_id}: {e}")
-                    logger.info(f"   Will create minimal metadata from existing files")
-            else:
-                logger.info(f"⏭️  Skipping download for {video_id}: files exist (no metadata, will create)")
-            
-            # Create minimal metadata if not available
-            if not existing_metadata:
-                # Extract basic info from yt-dlp without downloading
-                try:
-                    with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True}) as ydl:
-                        info = ydl.extract_info(url, download=False)
+        # Check if files already exist (skip download if found and valid)
+        if self.enable_cache:
+            video_exists = video_path.exists()
+            audio_exists = audio_path.exists()
+            metadata_exists = metadata_path.exists()
+
+            logger.info(f"🔍 Cache check for {video_id} (segment: {is_segment}):")
+            logger.info(f"   Video: {video_path.name} - {'✓ EXISTS' if video_exists else '✗ MISSING'}")
+            logger.info(f"   Audio: {audio_path.name} - {'✓ EXISTS' if audio_exists else '✗ MISSING'}")
+            logger.info(f"   Metadata: {metadata_path.name} - {'✓ EXISTS' if metadata_exists else '✗ MISSING'}")
+
+            # Verify file integrity if enabled
+            video_valid = True
+            audio_valid = True
+
+            if self.verify_file_size and video_exists:
+                video_valid = self._verify_file_integrity(video_path, "video")
+                if not video_valid:
+                    logger.warning(f"   ⚠️  Cached video file is corrupted, will re-download")
+                    self.corrupted_files += 1
+                    # Delete corrupted file
+                    try:
+                        video_path.unlink()
+                        video_exists = False
+                    except Exception as e:
+                        logger.error(f"   Failed to delete corrupted video: {e}")
+
+            if self.verify_file_size and audio_exists:
+                audio_valid = self._verify_file_integrity(audio_path, "audio")
+                if not audio_valid:
+                    logger.warning(f"   ⚠️  Cached audio file is corrupted, will re-download")
+                    self.corrupted_files += 1
+                    # Delete corrupted file
+                    try:
+                        audio_path.unlink()
+                        audio_exists = False
+                    except Exception as e:
+                        logger.error(f"   Failed to delete corrupted audio: {e}")
+
+            if video_exists and audio_exists and video_valid and audio_valid:
+                # Cache hit! Files are valid and ready to use
+                self.cache_hits += 1
+
+                # If both files exist, we can skip download even without metadata
+                # Try to load metadata if available, otherwise create minimal metadata
+                existing_metadata = None
+                if metadata_exists:
+                    try:
+                        with open(metadata_path, 'r', encoding='utf-8') as f:
+                            existing_metadata = json.load(f)
+                        logger.info(f"✅ CACHE HIT! Using cached files with metadata for {video_id}")
+                        logger.info(f"   📂 Video: {video_path.name} ({video_path.stat().st_size / 1024 / 1024:.2f} MB)")
+                        logger.info(f"   🎵 Audio: {audio_path.name} ({audio_path.stat().st_size / 1024 / 1024:.2f} MB)")
+                    except Exception as e:
+                        logger.warning(f"⚠️  Failed to load cached metadata: {e}")
+                        logger.info(f"   Will create minimal metadata from existing files")
+                else:
+                    logger.info(f"✅ CACHE HIT! Files exist, creating metadata for {video_id}")
+
+                # Create minimal metadata if not available
+                if not existing_metadata:
+                    # Extract basic info from yt-dlp without downloading
+                    try:
+                        with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True}) as ydl:
+                            info = ydl.extract_info(url, download=False)
+                            existing_metadata = {
+                                'id': info.get('id', video_id),
+                                'title': info.get('title', ''),
+                                'uploader': info.get('uploader', ''),
+                                'upload_date': info.get('upload_date', ''),
+                                'duration': end_time - start_time if is_segment else info.get('duration', 0),
+                                'url': url
+                            }
+                        # Save metadata for next time
+                        with open(metadata_path, 'w', encoding='utf-8') as f:
+                            json.dump(existing_metadata, f, ensure_ascii=False, indent=2)
+                        logger.info(f"   ✓ Created and saved metadata")
+                    except Exception as e:
+                        logger.warning(f"⚠️  Failed to extract metadata: {e}")
+                        # Use minimal fallback metadata
                         existing_metadata = {
-                            'id': info.get('id', video_id),
-                            'title': info.get('title', ''),
-                            'uploader': info.get('uploader', ''),
-                            'upload_date': info.get('upload_date', ''),
-                            'duration': end_time - start_time if is_segment else info.get('duration', 0),
+                            'id': video_id,
+                            'title': '',
+                            'uploader': '',
+                            'upload_date': '',
+                            'duration': end_time - start_time if is_segment else 0,
                             'url': url
                         }
-                    # Save metadata for next time
-                    with open(metadata_path, 'w', encoding='utf-8') as f:
-                        json.dump(existing_metadata, f, ensure_ascii=False, indent=2)
-                    logger.info(f"   ✓ Created and saved metadata")
-                except Exception as e:
-                    logger.warning(f"⚠️  Failed to extract metadata: {e}")
-                    # Use minimal fallback metadata
-                    existing_metadata = {
-                        'id': video_id,
-                        'title': '',
-                        'uploader': '',
-                        'upload_date': '',
-                        'duration': end_time - start_time if is_segment else 0,
-                        'url': url
-                    }
-            
-            logger.info(f"   Video: {video_path.name}, Audio: {audio_path.name}")
-            
-            return DownloadResult(
-                url=url,
-                success=True,
-                video_path=str(video_path),
-                audio_path=str(audio_path),
-                metadata=existing_metadata,
-                start_time=start_time,
-                end_time=end_time,
-                duration=existing_metadata.get('duration', None)
-            )
+
+                return DownloadResult(
+                    url=url,
+                    success=True,
+                    video_path=str(video_path),
+                    audio_path=str(audio_path),
+                    metadata=existing_metadata,
+                    start_time=start_time,
+                    end_time=end_time,
+                    duration=existing_metadata.get('duration', None)
+                )
+            else:
+                # Cache miss - need to download
+                self.cache_misses += 1
+                logger.info(f"⬇️  CACHE MISS - Downloading {video_id}...")
         
         try:
             # Progress hook
@@ -679,11 +779,46 @@ class YouTubeDownloader:
         
         return retry_results
     
-    def cleanup(self, keep_files: bool = False):
-        """Clean up downloaded files"""
+    def get_cache_stats(self) -> Dict:
+        """Get cache statistics"""
+        total_requests = self.cache_hits + self.cache_misses
+        hit_rate = (self.cache_hits / total_requests * 100) if total_requests > 0 else 0
+
+        return {
+            'cache_hits': self.cache_hits,
+            'cache_misses': self.cache_misses,
+            'corrupted_files': self.corrupted_files,
+            'total_requests': total_requests,
+            'hit_rate_percent': round(hit_rate, 2)
+        }
+
+    def log_cache_stats(self):
+        """Log cache statistics"""
+        stats = self.get_cache_stats()
+        logger.info("=" * 60)
+        logger.info("📊 CACHE STATISTICS:")
+        logger.info(f"   ✅ Cache Hits:       {stats['cache_hits']}")
+        logger.info(f"   ⬇️  Cache Misses:     {stats['cache_misses']}")
+        logger.info(f"   ⚠️  Corrupted Files:  {stats['corrupted_files']}")
+        logger.info(f"   📈 Cache Hit Rate:   {stats['hit_rate_percent']}%")
+        logger.info(f"   🎯 Total Requests:   {stats['total_requests']}")
+        logger.info("=" * 60)
+
+    def cleanup(self, keep_files: bool = True):
+        """
+        Clean up downloaded files
+
+        Args:
+            keep_files: If True, keep all downloaded files (default: True for resume capability)
+                       If False, delete all files in temp directory
+        """
         if not keep_files and self.temp_dir.exists():
-            logger.info("Cleaning up temporary files...")
+            logger.warning("⚠️  Cleaning up ALL downloaded files...")
+            logger.warning("   This will delete all cached videos and audio files!")
             import shutil
             shutil.rmtree(self.temp_dir)
-            logger.info("Cleanup complete")
+            logger.info("✓ Cleanup complete - all files deleted")
+        else:
+            logger.info("✓ Keeping downloaded files for reuse (cache enabled)")
+            logger.info(f"   📁 Files location: {self.temp_dir.absolute()}")
 
