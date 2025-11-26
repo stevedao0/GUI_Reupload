@@ -833,9 +833,21 @@ body {
 /* Stats Grid (for dashboard cards) */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--space-lg);
     margin-bottom: var(--space-xl);
+}
+
+@media (max-width: 1024px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .stats-grid .stat-card {
@@ -913,14 +925,30 @@ body {
 }
 
 /* System Info Card */
+.system-info-card {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+    .system-info-card {
+        grid-column: span 1;
+    }
+}
+
 .system-info-card .stat-content {
     width: 100%;
 }
 
 .system-metrics {
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+    .system-metrics {
+        grid-template-columns: 1fr;
+    }
 }
 
 .metric-row {
@@ -931,6 +959,19 @@ body {
     background: var(--bg-secondary);
     border-radius: var(--radius-sm);
     transition: all 0.2s;
+}
+
+.metric-row-full {
+    grid-column: 1 / -1;
+    justify-content: center;
+    gap: 1rem;
+}
+
+@media (max-width: 640px) {
+    .metric-row-full {
+        grid-column: span 1;
+        justify-content: space-between;
+    }
 }
 
 .metric-row:hover {
