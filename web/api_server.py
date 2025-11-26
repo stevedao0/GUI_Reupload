@@ -290,22 +290,64 @@ def force_kill_process():
     # Send response with instruction to close tab
     def kill_after_response():
         import time
-        time.sleep(0.3)  # Give time for response to send
+        import sys
+        import subprocess
+        import platform
 
-        # Force close all connections
+        time.sleep(0.5)  # Give time for response to send
+
+        print("\n🔴 Executing FORCE KILL...")
+        pid = os.getpid()
+
+        # Force terminate all threads and processes
         try:
-            # Shutdown Flask server gracefully first
-            func = request.environ.get('werkzeug.server.shutdown')
-            if func:
-                func()
+            # Kill all child processes if any
+            import psutil
+            current_process = psutil.Process(pid)
+            children = current_process.children(recursive=True)
+            for child in children:
+                try:
+                    print(f"🔴 Killing child process {child.pid}...")
+                    child.kill()
+                except:
+                    pass
+        except ImportError:
+            # psutil not available, skip child killing
+            print("⚠️ psutil not available, skipping child process killing")
+
+        # Platform-specific force kill
+        system = platform.system()
+        print(f"🔴 Detected OS: {system}")
+        print(f"🔴 Current PID: {pid}")
+
+        if system == 'Windows':
+            # Windows: Use taskkill /F
+            print("🔴 Using Windows TASKKILL...")
+            try:
+                subprocess.Popen(['taskkill', '/F', '/PID', str(pid)],
+                               creationflags=subprocess.CREATE_NO_WINDOW)
+            except:
+                pass
+        else:
+            # Linux/Mac: Use kill -9
+            print("🔴 Using Unix kill -9...")
+            try:
+                subprocess.Popen(['kill', '-9', str(pid)])
+            except:
+                pass
+
+        # Multiple exit methods (one of these WILL work)
+        time.sleep(0.1)
+        print("🔴 Executing sys.exit(1)...")
+        try:
+            sys.exit(1)
         except:
             pass
 
-        # Then force kill the process
-        time.sleep(0.2)
-        os.kill(os.getpid(), signal.SIGKILL)  # SIGKILL for immediate termination
+        print("🔴 Executing os._exit(1)...")
+        os._exit(1)  # This one is guaranteed to work
 
-    kill_thread = threading.Thread(target=kill_after_response, daemon=True)
+    kill_thread = threading.Thread(target=kill_after_response, daemon=False)  # daemon=False to ensure execution
     kill_thread.start()
 
     return jsonify({
