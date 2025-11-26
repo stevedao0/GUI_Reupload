@@ -912,6 +912,46 @@ body {
     height: 28px;
 }
 
+/* System Info Card */
+.system-info-card .stat-content {
+    width: 100%;
+}
+
+.system-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+}
+
+.metric-row:hover {
+    background: var(--bg-tertiary);
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 70px;
+}
+
+.metric-value {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: right;
+    flex: 1;
+}
+
 /* ================================
    Upload Components
    ================================ */

@@ -1024,9 +1024,35 @@ class StatisticsManager {
 let historyManager;
 let statisticsManager;
 
+async function loadSystemInfo() {
+    try {
+        const response = await fetch('/api/system-info');
+        const data = await response.json();
+
+        if (data.success && data.system) {
+            document.getElementById('cpuInfo').textContent = data.system.cpu;
+            document.getElementById('ramInfo').textContent = data.system.ram;
+            document.getElementById('gpuInfo').textContent = data.system.gpu;
+            document.getElementById('pythonInfo').textContent = data.system.python;
+        } else {
+            document.getElementById('cpuInfo').textContent = 'Error';
+            document.getElementById('ramInfo').textContent = 'Error';
+            document.getElementById('gpuInfo').textContent = 'Error';
+            document.getElementById('pythonInfo').textContent = 'Error';
+        }
+    } catch (error) {
+        console.error('Failed to load system info:', error);
+        document.getElementById('cpuInfo').textContent = 'N/A';
+        document.getElementById('ramInfo').textContent = 'N/A';
+        document.getElementById('gpuInfo').textContent = 'N/A';
+        document.getElementById('pythonInfo').textContent = 'N/A';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     new YouTubeContentDetector();
     historyManager = new HistoryManager();
     statisticsManager = new StatisticsManager();
+    loadSystemInfo();
     console.log('YouTube Content Detector initialized');
 });

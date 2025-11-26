@@ -128,15 +128,32 @@
                     </div>
                 </div>
 
-                <div class="stat-card">
+                <div class="stat-card system-info-card">
                     <div class="stat-content">
                         <div class="stat-header">
-                            <span class="stat-label">GPU Acceleration</span>
+                            <span class="stat-label">System Info</span>
                             <span class="stat-trend" style="color: var(--text-secondary); font-size: 0.75rem;">
-                                Processing mode
+                                Hardware status
                             </span>
                         </div>
-                        <div class="stat-value" id="statGpuStatus" style="font-size: 1.3rem;">Enabled</div>
+                        <div class="system-metrics">
+                            <div class="metric-row">
+                                <span class="metric-label">CPU:</span>
+                                <span class="metric-value" id="cpuInfo">Loading...</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">RAM:</span>
+                                <span class="metric-value" id="ramInfo">Loading...</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">GPU:</span>
+                                <span class="metric-value" id="gpuInfo">Loading...</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Python:</span>
+                                <span class="metric-value" id="pythonInfo">Loading...</span>
+                            </div>
+                        </div>
                     </div>
                     <div class="stat-icon purple">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -921,6 +921,74 @@ def search_history():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/system-info', methods=['GET'])
+def get_system_info():
+    """Get system hardware information"""
+    try:
+        import platform
+        import psutil
+
+        # CPU Info
+        cpu_count = psutil.cpu_count(logical=False)
+        cpu_count_logical = psutil.cpu_count(logical=True)
+        cpu_freq = psutil.cpu_freq()
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+
+        cpu_info = f"{cpu_count}C/{cpu_count_logical}T @ {cpu_freq.current/1000:.1f}GHz ({cpu_percent}%)"
+
+        # RAM Info
+        ram = psutil.virtual_memory()
+        ram_total_gb = ram.total / (1024**3)
+        ram_used_gb = ram.used / (1024**3)
+        ram_percent = ram.percent
+
+        ram_info = f"{ram_used_gb:.1f}/{ram_total_gb:.1f}GB ({ram_percent}%)"
+
+        # GPU Info
+        gpu_info = "N/A"
+        try:
+            import torch
+            if torch.cuda.is_available():
+                gpu_name = torch.cuda.get_device_name(0)
+                gpu_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                gpu_info = f"{gpu_name} ({gpu_memory:.1f}GB)"
+            else:
+                gpu_info = "CPU Only"
+        except:
+            gpu_info = "CPU Only"
+
+        # Python Info
+        python_version = platform.python_version()
+        python_info = f"{python_version}"
+
+        # OS Info
+        os_info = f"{platform.system()} {platform.release()}"
+
+        return jsonify({
+            'success': True,
+            'system': {
+                'cpu': cpu_info,
+                'ram': ram_info,
+                'gpu': gpu_info,
+                'python': python_info,
+                'os': os_info
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error fetching system info: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'system': {
+                'cpu': 'Error',
+                'ram': 'Error',
+                'gpu': 'Error',
+                'python': 'Error',
+                'os': 'Error'
+            }
+        }), 500
+
+
 if __name__ == '__main__':
     logger.info("=" * 80)
     logger.info("YouTube Reupload Detector - Web Server Starting...")
