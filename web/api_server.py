@@ -1066,16 +1066,20 @@ def download_videos():
                 'success': result.success,
                 'video_path': str(result.video_path) if result.video_path else None,
                 'audio_path': str(result.audio_path) if result.audio_path else None,
+                'merged_path': str(result.merged_path) if result.merged_path else None,
                 'metadata': result.metadata,
                 'error': result.error
             })
 
-            # Collect successful file paths
+            # Collect successful file paths (prioritize merged file)
             if result.success:
-                if result.video_path and Path(result.video_path).exists():
-                    successful_files.append(str(result.video_path))
-                if result.audio_path and Path(result.audio_path).exists():
-                    successful_files.append(str(result.audio_path))
+                if result.merged_path and Path(result.merged_path).exists():
+                    successful_files.append(str(result.merged_path))
+                else:
+                    if result.video_path and Path(result.video_path).exists():
+                        successful_files.append(str(result.video_path))
+                    if result.audio_path and Path(result.audio_path).exists():
+                        successful_files.append(str(result.audio_path))
 
         success_count = sum(1 for r in results if r.success)
 

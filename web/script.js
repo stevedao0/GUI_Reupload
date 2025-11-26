@@ -1249,8 +1249,17 @@ class DownloadManager {
                 </div>
                 ${result.success ? `
                     <div class="result-paths">
-                        ${result.video_path ? `<p><strong>Video:</strong> ${result.video_path}</p>` : ''}
-                        ${result.audio_path ? `<p><strong>Audio:</strong> ${result.audio_path}</p>` : ''}
+                        ${result.merged_path ? `
+                            <p style="color: var(--success); font-weight: 600;">
+                                <strong>🎬 Merged File:</strong> ${result.merged_path}
+                            </p>
+                            <p style="font-size: 0.875rem; color: var(--text-secondary);">
+                                (Video + Audio đã được ghép thành 1 file)
+                            </p>
+                        ` : `
+                            ${result.video_path ? `<p><strong>Video:</strong> ${result.video_path}</p>` : ''}
+                            ${result.audio_path ? `<p><strong>Audio:</strong> ${result.audio_path}</p>` : ''}
+                        `}
                         ${result.metadata ? `<p><strong>Title:</strong> ${result.metadata.title || 'N/A'}</p>` : ''}
                     </div>
                 ` : ''}

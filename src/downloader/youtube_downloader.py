@@ -23,6 +23,7 @@ class DownloadResult:
     success: bool
     video_path: Optional[str] = None
     audio_path: Optional[str] = None
+    merged_path: Optional[str] = None
     metadata: Optional[Dict] = None
     start_time: Optional[int] = None
     end_time: Optional[int] = None
@@ -218,7 +219,60 @@ class YouTubeDownloader:
         except Exception as e:
             logger.error(f"Failed to trim media: {e}")
             return False
-    
+
+    def merge_video_audio(self, video_path: Path, audio_path: Path, output_path: Path) -> bool:
+        """
+        Merge video and audio files into a single file using ffmpeg
+
+        Args:
+            video_path: Path to video file
+            audio_path: Path to audio file
+            output_path: Path to output merged file
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if not video_path.exists():
+                logger.error(f"Video file not found: {video_path}")
+                return False
+            if not audio_path.exists():
+                logger.error(f"Audio file not found: {audio_path}")
+                return False
+
+            cmd = [
+                get_ffmpeg_path(),
+                '-loglevel', 'error',
+                '-i', str(video_path),
+                '-i', str(audio_path),
+                '-c:v', 'copy',
+                '-c:a', 'aac',
+                '-b:a', '128k',
+                '-y',
+                str(output_path)
+            ]
+
+            logger.info(f"🔧 Merging video + audio: {output_path.name}")
+
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=600
+            )
+
+            if result.returncode == 0 and output_path.exists():
+                logger.info(f"✅ Successfully merged: {output_path.name}")
+                return True
+            else:
+                stderr_output = result.stderr.decode(errors='ignore')
+                logger.error(f"ffmpeg merge error: {stderr_output}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Failed to merge video+audio: {e}")
+            return False
+
     def download_video(self, url: str, 
                       start_time: Optional[int] = None,
                       end_time: Optional[int] = None,
@@ -571,14 +625,32 @@ class YouTubeDownloader:
                 json.dump(metadata, f, ensure_ascii=False, indent=2)
             
             duration = end_time - start_time if is_segment else metadata.get('duration')
-            
+
             logger.info(f"Successfully downloaded: {metadata.get('title')}")
-            
+
+            # Merge video + audio into single file
+            merged_path = None
+            if video_path.exists() and audio_path.exists():
+                if is_segment:
+                    merged_filename = f"{video_id}_{start_time}_{end_time}_merged.mp4"
+                else:
+                    merged_filename = f"{video_id}_merged.mp4"
+
+                merged_path = self.temp_dir / merged_filename
+
+                logger.info(f"🔧 Merging video + audio into: {merged_filename}")
+                if self.merge_video_audio(video_path, audio_path, merged_path):
+                    logger.info(f"✅ Merge successful: {merged_filename}")
+                else:
+                    logger.warning(f"⚠️  Merge failed, keeping separate files")
+                    merged_path = None
+
             return DownloadResult(
                 url=url,
                 success=True,
                 video_path=str(video_path),
                 audio_path=str(audio_path),
+                merged_path=str(merged_path) if merged_path else None,
                 metadata=metadata,
                 start_time=start_time,
                 end_time=end_time,
